@@ -1,5 +1,51 @@
 import { useState, useEffect, useRef } from "react";
 
+// ---------- 小圖示（純 SVG，不需額外套件） ----------
+function IconPencil({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path d="M13.3 3.3l3.4 3.4L6.8 16.6l-4 .9.9-4L13.3 3.3z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconCheck({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+      <path d="M4 10.2l3.8 3.8L16 5.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconTrash({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path
+        d="M4.5 6h11M8 6V4.6c0-.9.7-1.6 1.5-1.6h1c.8 0 1.5.7 1.5 1.6V6m-6.5 0l.7 9.5c.1.9.8 1.6 1.7 1.6h4.2c.9 0 1.6-.7 1.7-1.6L14.5 6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+function IconCopy({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <rect x="7.2" y="7.2" width="9" height="9" rx="1.5" />
+      <path d="M4.5 12.5V6a1.5 1.5 0 011.5-1.5h6.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconLink({ className = "h-3.5 w-3.5" }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
+      <path
+        d="M8.2 11.8l3.6-3.6M6.6 12.9l-1.4 1.4a2.7 2.7 0 003.8 3.8l1.9-1.9M13.4 7.1l1.4-1.4a2.7 2.7 0 00-3.8-3.8L9.1 3.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // ---------- 小工具函式 ----------
 
 // 清理 104 網址：移除 jobsource 參數
@@ -364,18 +410,39 @@ function StatCard({ label, value, series }) {
 }
 
 // ---------- 貼文方塊 ----------
-function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, onCopy, copied, options, onAddOption }) {
+function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, onCopy, copied, options, onAddOption, onSaveNow }) {
+  // 空白的新方塊直接打開編輯模式；已有內容的方塊預設顯示唯讀摘要
+  const [mode, setMode] = useState(() =>
+    post.post_name || post.theme || post.format || post.medium || post.note ? "view" : "edit"
+  );
+  const [justSaved, setJustSaved] = useState(false);
   const [linkInput, setLinkInput] = useState("");
   const [linkErr, setLinkErr] = useState("");
 
   const inputCls =
-    "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+    "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow";
   const labelCls = "block text-xs font-medium text-stone-500 mb-1";
   const btnGhost =
     "rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   const set = (k, v) => onChange({ ...post, [k]: v });
   const ctr = calcCTR(post);
+
+  const ctrBadgeCls =
+    ctr === null
+      ? "bg-stone-100 text-stone-400"
+      : ctr >= 1
+      ? "bg-emerald-50 text-emerald-700"
+      : ctr >= 0.3
+      ? "bg-amber-50 text-amber-700"
+      : "bg-stone-100 text-stone-500";
+
+  const handleSave = () => {
+    onSaveNow?.();
+    setMode("view");
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 1600);
+  };
 
   const addLink = () => {
     const r = cleanUrl104(linkInput);
@@ -402,212 +469,291 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
   ];
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white shadow-sm">
-      {/* 方塊標頭：自動編號 + 自動日期 */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-stone-200 px-5 py-3">
-        <span className="rounded-md bg-indigo-600 px-2.5 py-1 text-sm font-semibold text-white">
-          post_id {index + 1}
+    <div className="rounded-xl border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* 方塊標頭：自動編號 + 自動日期 + 編輯／儲存／刪除 */}
+      <div className="flex flex-wrap items-center gap-2.5 rounded-t-xl border-b border-stone-100 bg-stone-50/70 px-5 py-3">
+        <span className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+          #{index + 1}
         </span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-stone-500">publish_date</span>
+        <div className="flex items-center gap-1.5">
           <input
             type="date"
-            className="rounded-md border border-stone-300 px-2 py-1 text-sm text-stone-700"
+            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             value={post.publish_date}
             onChange={(e) => set("publish_date", e.target.value)}
           />
-          <span className="text-xs text-stone-400">（建立時自動帶入，可修改）</span>
         </div>
-        <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-stone-400">
-            {post.links.length} 個連結 · CTR{" "}
-            <span className="font-medium text-indigo-700">
-              {ctr === null ? "—" : ctr.toFixed(2) + "%"}
+        <span className={"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium " + ctrBadgeCls}>
+          CTR {ctr === null ? "—" : ctr.toFixed(2) + "%"}
+        </span>
+        <span className="inline-flex items-center gap-1 text-xs text-stone-400">
+          <IconLink className="h-3.5 w-3.5" /> {post.links.length}
+        </span>
+
+        <div className="ml-auto flex items-center gap-2">
+          {justSaved && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+              <IconCheck className="h-3.5 w-3.5" /> 已儲存
             </span>
-          </span>
+          )}
+          {mode === "edit" ? (
+            <button
+              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
+              onClick={handleSave}
+            >
+              <IconCheck /> 儲存
+            </button>
+          ) : (
+            <button
+              className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+              onClick={() => setMode("edit")}
+            >
+              <IconPencil /> 編輯
+            </button>
+          )}
           <button
-            className="text-xs text-red-500 hover:underline"
+            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
             onClick={() => onDelete(post._id)}
           >
-            刪除方塊
+            <IconTrash /> 刪除
           </button>
         </div>
       </div>
 
-      <div className="space-y-4 px-5 py-4">
-        {/* 基本欄位 */}
-        <div className="flex flex-wrap gap-3">
-          <div className="flex-1 min-w-56">
-            <label className={labelCls}>post_name（貼文名稱）</label>
-            <input
-              className={inputCls}
-              value={post.post_name}
-              onChange={(e) => set("post_name", e.target.value)}
-            />
-          </div>
-          <div className="w-48">
-            <SelectField
-              label="theme（主題）"
-              value={post.theme}
-              options={options.theme}
-              onChange={(v) => set("theme", v)}
-              onAddOption={(v) => onAddOption("theme", v)}
-            />
-          </div>
-          <div className="w-36">
-            <SelectField
-              label="format（形式）"
-              value={post.format}
-              options={options.format}
-              onChange={(v) => set("format", v)}
-            />
-          </div>
-          <div className="w-44">
-            <SelectField
-              label="Medium（媒介）"
-              value={post.medium}
-              options={options.medium}
-              onChange={(v) => set("medium", v)}
-            />
-          </div>
-        </div>
-
-        {/* 數字欄位 */}
-        <div className="flex flex-wrap gap-3">
-          {numFields.map((f) => (
-            <div key={f.k} className="w-28">
-              <label className={labelCls}>{f.label}</label>
+      {mode === "edit" ? (
+        <div className="space-y-4 px-5 py-4">
+          {/* 基本欄位 */}
+          <div className="flex flex-wrap gap-3 rounded-lg bg-stone-50 p-3.5">
+            <div className="flex-1 min-w-56">
+              <label className={labelCls}>post_name（貼文名稱）</label>
               <input
-                type="number"
-                min="0"
                 className={inputCls}
-                value={post[f.k]}
-                onChange={(e) => set(f.k, e.target.value)}
+                value={post.post_name}
+                onChange={(e) => set("post_name", e.target.value)}
               />
             </div>
-          ))}
-          {/* CTR 自動計算欄位：link_clicks / reach */}
-          <div className="w-32">
-            <label className={labelCls}>CTR（自動 = link_clicks / reach）</label>
-            <div
-              className="rounded-md border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
-              title="CTR = link_clicks ÷ reach × 100%，填好兩個欄位就會自動算"
-            >
-              {ctr === null ? "—" : ctr.toFixed(2) + "%"}
+            <div className="w-48">
+              <SelectField
+                label="theme（主題）"
+                value={post.theme}
+                options={options.theme}
+                onChange={(v) => set("theme", v)}
+                onAddOption={(v) => onAddOption("theme", v)}
+              />
+            </div>
+            <div className="w-36">
+              <SelectField
+                label="format（形式）"
+                value={post.format}
+                options={options.format}
+                onChange={(v) => set("format", v)}
+              />
+            </div>
+            <div className="w-44">
+              <SelectField
+                label="Medium（媒介）"
+                value={post.medium}
+                options={options.medium}
+                onChange={(v) => set("medium", v)}
+              />
             </div>
           </div>
-        </div>
 
-        {/* 文案 */}
-        <div>
-          <label className={labelCls}>文案</label>
-          <textarea
-            className={inputCls + " min-h-20 resize-y"}
-            placeholder="貼上這篇貼文的文案內容"
-            value={post.note}
-            onChange={(e) => set("note", e.target.value)}
-          />
-        </div>
+          {/* 數字欄位 */}
+          <div className="flex flex-wrap gap-3 rounded-lg bg-stone-50 p-3.5">
+            {numFields.map((f) => (
+              <div key={f.k} className="w-28">
+                <label className={labelCls}>{f.label}</label>
+                <input
+                  type="number"
+                  min="0"
+                  className={inputCls}
+                  value={post[f.k]}
+                  onChange={(e) => set(f.k, e.target.value)}
+                />
+              </div>
+            ))}
+            {/* CTR 自動計算欄位：link_clicks / reach */}
+            <div className="w-32">
+              <label className={labelCls}>CTR（自動 = link_clicks / reach）</label>
+              <div
+                className="rounded-md border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
+                title="CTR = link_clicks ÷ reach × 100%，填好兩個欄位就會自動算"
+              >
+                {ctr === null ? "—" : ctr.toFixed(2) + "%"}
+              </div>
+            </div>
+          </div>
 
-        {/* 連結區 */}
-        <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4">
-          <label className={labelCls}>這篇貼文的 104 連結（可加多個，會自動清掉 jobsource）</label>
-          <div className="flex gap-2">
-            <input
-              className={inputCls}
-              placeholder="https://www.104.com.tw/job/xxxxx?jobsource=..."
-              value={linkInput}
-              onChange={(e) => {
-                setLinkInput(e.target.value);
-                setLinkErr("");
-              }}
-              onKeyDown={(e) => e.key === "Enter" && addLink()}
+          {/* 文案 */}
+          <div>
+            <label className={labelCls}>文案</label>
+            <textarea
+              className={inputCls + " min-h-24 resize-y"}
+              placeholder="貼上這篇貼文的文案內容"
+              value={post.note}
+              onChange={(e) => set("note", e.target.value)}
             />
-            <button className={btnGhost + " shrink-0 bg-white"} onClick={addLink}>
-              加入連結
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
+              onClick={handleSave}
+            >
+              <IconCheck className="h-4 w-4" /> 儲存並收合
             </button>
           </div>
-          {linkErr && <p className="mt-2 text-sm text-red-600">{linkErr}</p>}
-
-          {post.links.length > 0 && (
-            <ul className="mt-3 space-y-2">
-              {post.links.map((l) => (
-                <li key={l._id} className="rounded-md border border-stone-200 bg-white px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <a
-                      href={l.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="min-w-0 flex-1 truncate text-sm text-indigo-700 hover:underline"
-                      title={l.url}
-                    >
-                      {l.url}
-                    </a>
-                    <button
-                      className="shrink-0 text-xs text-stone-500 hover:text-stone-700"
-                      onClick={() => onCopy(l.url, l._id)}
-                    >
-                      {copied === l._id ? "已複製 ✓" : "複製"}
-                    </button>
-                    <button
-                      className="shrink-0 text-xs text-red-500 hover:underline"
-                      onClick={() => onDeleteLink(post._id, l._id)}
-                    >
-                      移除
-                    </button>
-                  </div>
-                  <input
-                    className="mt-1.5 w-full rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    placeholder="職缺名稱（手動輸入）"
-                    value={l.title}
-                    onChange={(e) =>
-                      onChange({
-                        ...post,
-                        links: post.links.map((x) =>
-                          x._id === l._id ? { ...x, title: e.target.value } : x
-                        ),
-                      })
-                    }
-                  />
-
-                  {/* 追蹤連結：依這個方塊選的 Medium 自動掛上 jobsource / utm 參數 */}
-                  {(() => {
-                    const tracked = buildTrackedUrl(l.url, post.medium, post.publish_date);
-                    if (tracked) {
-                      return (
-                        <div className="mt-1.5 flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5">
-                          <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            追蹤連結
-                          </span>
-                          <a
-                            href={tracked}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="min-w-0 flex-1 truncate text-xs text-indigo-700 hover:underline"
-                            title={tracked}
-                          >
-                            {tracked}
-                          </a>
-                          <button
-                            className="shrink-0 text-xs font-medium text-indigo-700 hover:underline"
-                            onClick={() => onCopy(tracked, l._id + "-t")}
-                          >
-                            {copied === l._id + "-t" ? "已複製 ✓" : "複製"}
-                          </button>
-                        </div>
-                      );
-                    }
-                    return (
-                      <p className="mt-1.5 text-xs text-stone-400">
-                        先在上方選擇 Medium（媒介），就會自動產生這個帳號專用的追蹤連結。
-                      </p>
-                    );
-                  })()}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
+      ) : (
+        <div className="space-y-3 px-5 py-4">
+          <div>
+            <h3 className="text-base font-semibold text-stone-800">
+              {post.post_name || <span className="text-stone-400">（未命名貼文）</span>}
+            </h3>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {post.theme && (
+                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                  {post.theme}
+                </span>
+              )}
+              {post.format && (
+                <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
+                  {post.format}
+                </span>
+              )}
+              {post.medium && (
+                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                  {post.medium}
+                </span>
+              )}
+              {!post.theme && !post.format && !post.medium && (
+                <span className="text-xs text-stone-400">尚未設定主題／形式／媒介，點「編輯」補上</span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {numFields.map((f) => (
+              <div key={f.k} className="rounded-lg bg-stone-50 px-2.5 py-2 text-center">
+                <p className="text-[10px] text-stone-400">{f.label}</p>
+                <p className="text-sm font-semibold text-stone-700">{post[f.k] || 0}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-lg bg-stone-50 px-3 py-2.5 text-sm text-stone-600 whitespace-pre-wrap">
+            {post.note || <span className="text-stone-400">（尚未填寫文案，點「編輯」新增）</span>}
+          </div>
+        </div>
+      )}
+
+      {/* 連結區：不受編輯／儲存模式影響，隨時可加連結 */}
+      <div className="mx-5 mb-5 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4">
+        <label className={labelCls}>這篇貼文的 104 連結（可加多個，會自動清掉 jobsource）</label>
+        <div className="flex gap-2">
+          <input
+            className={inputCls}
+            placeholder="https://www.104.com.tw/job/xxxxx?jobsource=..."
+            value={linkInput}
+            onChange={(e) => {
+              setLinkInput(e.target.value);
+              setLinkErr("");
+            }}
+            onKeyDown={(e) => e.key === "Enter" && addLink()}
+          />
+          <button className={btnGhost + " shrink-0 bg-white"} onClick={addLink}>
+            加入連結
+          </button>
+        </div>
+        {linkErr && <p className="mt-2 text-sm text-red-600">{linkErr}</p>}
+
+        {post.links.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {post.links.map((l) => (
+              <li key={l._id} className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={l.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 truncate text-sm text-indigo-700 hover:underline"
+                    title={l.url}
+                  >
+                    {l.url}
+                  </a>
+                  <button
+                    className="inline-flex shrink-0 items-center gap-1 text-xs text-stone-500 hover:text-stone-700"
+                    onClick={() => onCopy(l.url, l._id)}
+                  >
+                    {copied === l._id ? (
+                      <>
+                        <IconCheck className="h-3.5 w-3.5 text-emerald-600" /> 已複製
+                      </>
+                    ) : (
+                      <>
+                        <IconCopy /> 複製
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="inline-flex shrink-0 items-center gap-1 text-xs text-red-500 hover:underline"
+                    onClick={() => onDeleteLink(post._id, l._id)}
+                  >
+                    <IconTrash className="h-3.5 w-3.5" /> 移除
+                  </button>
+                </div>
+                <input
+                  className="mt-1.5 w-full rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  placeholder="職缺名稱（手動輸入）"
+                  value={l.title}
+                  onChange={(e) =>
+                    onChange({
+                      ...post,
+                      links: post.links.map((x) =>
+                        x._id === l._id ? { ...x, title: e.target.value } : x
+                      ),
+                    })
+                  }
+                />
+
+                {/* 追蹤連結：依這個方塊選的 Medium 自動掛上 jobsource / utm 參數 */}
+                {(() => {
+                  const tracked = buildTrackedUrl(l.url, post.medium, post.publish_date);
+                  if (tracked) {
+                    return (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5">
+                        <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          追蹤連結
+                        </span>
+                        <a
+                          href={tracked}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-w-0 flex-1 truncate text-xs text-indigo-700 hover:underline"
+                          title={tracked}
+                        >
+                          {tracked}
+                        </a>
+                        <button
+                          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-indigo-700 hover:underline"
+                          onClick={() => onCopy(tracked, l._id + "-t")}
+                        >
+                          {copied === l._id + "-t" ? "已複製 ✓" : "複製"}
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <p className="mt-1.5 text-xs text-stone-400">
+                      先在上方選擇 Medium（媒介），就會自動產生這個帳號專用的追蹤連結。
+                    </p>
+                  );
+                })()}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -654,6 +800,16 @@ export default function App() {
         setTimeout(() => setSaveMsg(""), 3000);
       }
     }, 600);
+  };
+
+  // 貼文方塊按「儲存」時立即寫入 localStorage（跳過去抖動延遲）
+  const saveNow = () => {
+    clearTimeout(saveTimer.current);
+    const ok = savePosts(posts);
+    if (!ok) {
+      setSaveMsg("儲存失敗，資料只保留在目前畫面。");
+      setTimeout(() => setSaveMsg(""), 3000);
+    }
   };
 
   // --- 方塊操作 ---
@@ -781,18 +937,23 @@ export default function App() {
   const byMedium = Object.values(byMediumMap).sort((a, b) => b.reach - a.reach);
 
   return (
-    <div className="min-h-screen bg-stone-100 font-sans text-stone-800">
+    <div className="min-h-screen bg-gradient-to-b from-stone-100 to-stone-50 font-sans text-stone-800">
       <div className="mx-auto max-w-6xl px-4 py-8">
         {/* 標題 */}
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            追蹤成效總覽，以及方塊式貼文文案管理（post_id 與 publish_date 自動帶入）。
-          </p>
+        <header className="mb-6 flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-sm">
+            職
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
+            <p className="mt-0.5 text-sm text-stone-500">
+              追蹤成效總覽，以及方塊式貼文文案管理（post_id 與 publish_date 自動帶入）。
+            </p>
+          </div>
         </header>
 
         {/* 分頁 */}
-        <div className="mb-6 flex gap-1 rounded-lg bg-stone-200 p-1 w-fit">
+        <div className="mb-6 flex w-fit gap-1 rounded-xl bg-stone-200/70 p-1 shadow-inner">
           {[
             { id: "dashboard", label: "① 追蹤成效" },
             { id: "track", label: "② 文案集散地" },
@@ -801,8 +962,10 @@ export default function App() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={
-                "rounded-md px-4 py-1.5 text-sm font-medium transition-colors " +
-                (tab === t.id ? "bg-white text-indigo-700 shadow-sm" : "text-stone-500 hover:text-stone-700")
+                "rounded-lg px-4 py-1.5 text-sm font-medium transition-all " +
+                (tab === t.id
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-stone-500 hover:text-stone-700 hover:bg-white/50")
               }
             >
               {t.label}
@@ -904,12 +1067,15 @@ export default function App() {
         {/* ---------- 分頁二：文案集散地（方塊式） ---------- */}
         {tab === "track" && (
           <div className="space-y-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <button className={btnPrimary} onClick={() => addPost()}>
-                ＋ 新增貼文方塊
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+              <button
+                className={btnPrimary + " inline-flex items-center gap-1.5"}
+                onClick={() => addPost()}
+              >
+                <span className="text-base leading-none">＋</span> 新增貼文方塊
               </button>
-              <span className="text-xs text-stone-400">
-                post_id 依方塊順序自動編號；publish_date 自動帶入建立當天。
+              <span className="hidden text-xs text-stone-400 sm:inline">
+                post_id 依方塊順序自動編號；publish_date 自動帶入建立當天。新方塊會直接打開編輯模式。
               </span>
               <div className="ml-auto flex items-center gap-3">
                 {saveMsg && <span className="text-sm text-amber-700">{saveMsg}</span>}
@@ -941,6 +1107,7 @@ export default function App() {
                   copied={copied}
                   options={options}
                   onAddOption={addOption}
+                  onSaveNow={saveNow}
                 />
               ))
             )}
