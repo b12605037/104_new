@@ -67,15 +67,7 @@ async function copyText(text) {
   }
 }
 
-// 透過自家 serverless function 查職缺名稱（見 /api/job-title.js）
-async function fetchJobTitle(url) {
-  const r = await fetch("/api/job-title?url=" + encodeURIComponent(url));
-  if (!r.ok) throw new Error("查詢服務回應異常（" + r.status + "）");
-  return await r.json(); // { jobTitle, company }
-}
-
 // ---------- 本機儲存（localStorage） ----------
-
 const STORAGE_KEY = "jpt:posts";
 
 function loadPosts() {
@@ -144,7 +136,6 @@ function migrate(rows) {
 }
 
 // ---------- 下拉選單選項 ----------
-
 const OPT_KEY = "jpt:options";
 
 const defaultOptions = {
@@ -260,11 +251,9 @@ function SelectField({ label, value, options, onChange, onAddOption }) {
 }
 
 // ---------- 貼文方塊 ----------
-
 function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, onCopy, copied, options, onAddOption }) {
   const [linkInput, setLinkInput] = useState("");
   const [linkErr, setLinkErr] = useState("");
-  const [fetchingLinkId, setFetchingLinkId] = useState(null);
 
   const inputCls =
     "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
@@ -288,26 +277,6 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
     setLinkErr("");
     setLinkInput("");
     onAddLink(post._id, { _id: uid(), url: r.url, title: "" });
-  };
-
-  const lookupTitle = async (link) => {
-    setFetchingLinkId(link._id);
-    try {
-      const r = await fetchJobTitle(link.url);
-      if (r.jobTitle) {
-        onChange({
-          ...post,
-          links: post.links.map((l) =>
-            l._id === link._id
-              ? { ...l, title: r.jobTitle + (r.company ? "｜" + r.company : "") }
-              : l
-          ),
-        });
-      }
-    } catch {
-      // 查詢失敗就維持原狀，使用者可手動輸入
-    }
-    setFetchingLinkId(null);
   };
 
   const numFields = [
@@ -468,13 +437,6 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                       {copied === l._id ? "已複製 ✓" : "複製"}
                     </button>
                     <button
-                      className="shrink-0 text-xs text-stone-500 hover:text-stone-700 disabled:opacity-40"
-                      onClick={() => lookupTitle(l)}
-                      disabled={fetchingLinkId === l._id}
-                    >
-                      {fetchingLinkId === l._id ? "查詢中…" : "查職稱"}
-                    </button>
-                    <button
                       className="shrink-0 text-xs text-red-500 hover:underline"
                       onClick={() => onDeleteLink(post._id, l._id)}
                     >
@@ -483,7 +445,7 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                   </div>
                   <input
                     className="mt-1.5 w-full rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                    placeholder="職缺名稱（按「查職稱」自動帶入，或手動輸入）"
+                    placeholder="職缺名稱（手動輸入）"
                     value={l.title}
                     onChange={(e) =>
                       onChange({
@@ -494,6 +456,7 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                       })
                     }
                   />
+
                   {/* 追蹤連結：依這個方塊選的 Medium 自動掛上 jobsource / utm 參數 */}
                   {(() => {
                     const tracked = buildTrackedUrl(l.url, post.medium, post.publish_date);
@@ -538,19 +501,10 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
 }
 
 // ---------- 主元件 ----------
-
 export default function App() {
-  const [tab, setTab] = useState("url");
+  const [tab, setTab] = useState("dashboard");
 
-  // --- 網址工具狀態 ---
-  const [rawUrl, setRawUrl] = useState("");
-  const [cleaned, setCleaned] = useState(null);
-  const [jobTitle, setJobTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [fetching, setFetching] = useState(false);
-  const [fetchErr, setFetchErr] = useState("");
   const [copied, setCopied] = useState("");
-  const [targetPost, setTargetPost] = useState("new"); // "new" 或 post._id
 
   // --- 貼文方塊狀態 ---
   const [posts, setPosts] = useState([]);
@@ -564,6 +518,7 @@ export default function App() {
       return next;
     });
   };
+
   const [loaded, setLoaded] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const saveTimer = useRef(null);
@@ -618,62 +573,10 @@ export default function App() {
       )
     );
 
-  // --- 網址工具邏輯 ---
-  const handleUrlChange = (v) => {
-    setRawUrl(v);
-    setJobTitle("");
-    setCompany("");
-    setFetchErr("");
-    setCleaned(cleanUrl104(v));
-  };
-
-  const handleFetchTitle = async () => {
-    if (!cleaned?.ok) return;
-    setFetching(true);
-    setFetchErr("");
-    try {
-      const r = await fetchJobTitle(cleaned.url);
-      if (r.jobTitle) {
-        setJobTitle(r.jobTitle);
-        setCompany(r.company || "");
-      } else {
-        setFetchErr("查不到這個職缺的名稱，可能已關閉或網址有誤，可手動輸入。");
-      }
-    } catch (e) {
-      setFetchErr("查詢失敗：" + (e?.message || "未知錯誤") + "。可再試一次，或手動輸入職稱。");
-    }
-    setFetching(false);
-  };
-
   const handleCopy = async (text, key) => {
     const ok = await copyText(text);
     setCopied(ok ? key : "");
     if (ok) setTimeout(() => setCopied(""), 1600);
-  };
-
-  // 把清理後的連結加進指定方塊（或建立新方塊）
-  const sendToTracker = () => {
-    if (!cleaned?.ok) return;
-    const link = {
-      _id: uid(),
-      url: cleaned.url,
-      title: jobTitle ? `${jobTitle}${company ? "｜" + company : ""}` : "",
-    };
-    if (targetPost === "new" || posts.length === 0) {
-      const p = {
-        _id: uid(),
-        publish_date: todayStr(),
-        ...emptyPostFields,
-        post_name: link.title,
-        links: [link],
-      };
-      persist([...posts, p]);
-    } else {
-      persist(
-        posts.map((p) => (p._id === targetPost ? { ...p, links: [...p.links, link] } : p))
-      );
-    }
-    setTab("track");
   };
 
   // --- 匯出 CSV（一列一篇貼文，連結用「 | 」串接） ---
@@ -720,6 +623,46 @@ export default function App() {
   const btnGhost =
     "rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
+  // ---------- 追蹤成效 Dashboard 用的統計運算 ----------
+  const totalPosts = posts.length;
+  const sumField = (k) => posts.reduce((acc, p) => acc + num(p[k]), 0);
+  const totalReach = sumField("reach");
+  const totalLikes = sumField("likes");
+  const totalShares = sumField("shares");
+  const totalComments = sumField("comments");
+  const totalClicks = sumField("link_clicks");
+  const totalFans = sumField("fans_gained");
+  const overallCTR = totalReach > 0 ? (totalClicks / totalReach) * 100 : null;
+
+  const statCards = [
+    { label: "貼文篇數", value: String(totalPosts) },
+    { label: "總 reach", value: totalReach.toLocaleString() },
+    { label: "總 likes", value: totalLikes.toLocaleString() },
+    { label: "總 shares", value: totalShares.toLocaleString() },
+    { label: "總 comments", value: totalComments.toLocaleString() },
+    { label: "總 link_clicks", value: totalClicks.toLocaleString() },
+    { label: "總增加粉絲數", value: totalFans.toLocaleString() },
+    { label: "整體 CTR", value: overallCTR === null ? "—" : overallCTR.toFixed(2) + "%" },
+  ];
+
+  const ranked = posts
+    .map((p, i) => ({ ...p, _index: i, _ctr: calcCTR(p) }))
+    .filter((p) => p._ctr !== null)
+    .sort((a, b) => b._ctr - a._ctr)
+    .slice(0, 5);
+
+  const byMediumMap = {};
+  posts.forEach((p) => {
+    const key = p.medium || "（未選擇 Medium）";
+    if (!byMediumMap[key]) {
+      byMediumMap[key] = { medium: key, count: 0, reach: 0, clicks: 0 };
+    }
+    byMediumMap[key].count += 1;
+    byMediumMap[key].reach += num(p.reach);
+    byMediumMap[key].clicks += num(p.link_clicks);
+  });
+  const byMedium = Object.values(byMediumMap).sort((a, b) => b.reach - a.reach);
+
   return (
     <div className="min-h-screen bg-stone-100 font-sans text-stone-800">
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -727,15 +670,15 @@ export default function App() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
           <p className="mt-1 text-sm text-stone-500">
-            104 網址清理＋職稱帶入，以及方塊式貼文成效追蹤（post_id 與 publish_date 自動帶入）。
+            追蹤成效總覽，以及方塊式貼文文案管理（post_id 與 publish_date 自動帶入）。
           </p>
         </header>
 
         {/* 分頁 */}
         <div className="mb-6 flex gap-1 rounded-lg bg-stone-200 p-1 w-fit">
           {[
-            { id: "url", label: "① 網址工具" },
-            { id: "track", label: "② 成效追蹤" },
+            { id: "dashboard", label: "① 追蹤成效" },
+            { id: "track", label: "② 文案集散地" },
           ].map((t) => (
             <button
               key={t.id}
@@ -750,90 +693,101 @@ export default function App() {
           ))}
         </div>
 
-        {/* ---------- 分頁一：網址工具 ---------- */}
-        {tab === "url" && (
+        {/* ---------- 分頁一：追蹤成效 Dashboard ---------- */}
+        {tab === "dashboard" && (
           <div className="space-y-5">
-            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-              <label className={labelCls}>貼上 104 職缺網址</label>
-              <input
-                className={inputCls}
-                placeholder="https://www.104.com.tw/job/xxxxx?jobsource=..."
-                value={rawUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-              />
-              {cleaned && !cleaned.ok && cleaned.error && (
-                <p className="mt-2 text-sm text-red-600">{cleaned.error}</p>
-              )}
+            {/* 總覽卡片 */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {statCards.map((c) => (
+                <div key={c.label} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs text-stone-500">{c.label}</p>
+                  <p className="mt-1 text-xl font-semibold text-stone-900">{c.value}</p>
+                </div>
+              ))}
+            </div>
 
-              {cleaned?.ok && (
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className={labelCls}>清理後網址（已移除 jobsource）</label>
-                    <div className="flex gap-2">
-                      <input className={inputCls + " bg-stone-50"} readOnly value={cleaned.url} />
-                      <button className={btnGhost + " shrink-0"} onClick={() => handleCopy(cleaned.url, "url")}>
-                        {copied === "url" ? "已複製 ✓" : "複製"}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button className={btnPrimary} onClick={handleFetchTitle} disabled={fetching}>
-                      {fetching ? "查詢中…" : "查詢職缺名稱"}
+            {!loaded ? (
+              <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-sm text-stone-400 shadow-sm">
+                載入中…
+              </p>
+            ) : totalPosts === 0 ? (
+              <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-sm text-stone-400 shadow-sm">
+                還沒有任何貼文資料。到「文案集散地」新增貼文方塊，數據就會顯示在這裡。
+              </p>
+            ) : (
+              <>
+                {/* 貼文排行（依 CTR） */}
+                <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-stone-700">貼文排行（依 CTR）</h2>
+                    <button className={btnGhost} onClick={() => setTab("track")}>
+                      去文案集散地看全部 →
                     </button>
-                    <span className="text-xs text-stone-400">會連網查詢該頁面的職稱，約需幾秒。</span>
                   </div>
+                  {ranked.length === 0 ? (
+                    <p className="text-sm text-stone-400">
+                      目前還沒有可計算 CTR 的貼文（需同時填 reach 與 link_clicks）。
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {ranked.map((p, i) => (
+                        <li
+                          key={p._id}
+                          className="flex flex-wrap items-center gap-3 rounded-md border border-stone-200 px-3 py-2"
+                        >
+                          <span className="rounded bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                            #{i + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm text-stone-700">
+                            {p.post_name || "（未命名貼文）"}
+                          </span>
+                          <span className="text-xs text-stone-400">{p.publish_date}</span>
+                          <span className="text-xs text-stone-400">{p.medium || "—"}</span>
+                          <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                            CTR {p._ctr.toFixed(2)}%
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
-                  {fetchErr && <p className="text-sm text-amber-700">{fetchErr}</p>}
-
-                  <div>
-                    <label className={labelCls}>職缺名稱（可手動修改）</label>
-                    <div className="flex gap-2">
-                      <input
-                        className={inputCls}
-                        placeholder="例如：資深前端工程師"
-                        value={jobTitle}
-                        onChange={(e) => setJobTitle(e.target.value)}
-                      />
-                      <button
-                        className={btnGhost + " shrink-0"}
-                        onClick={() => handleCopy(jobTitle, "title")}
-                        disabled={!jobTitle}
-                      >
-                        {copied === "title" ? "已複製 ✓" : "複製"}
-                      </button>
-                    </div>
-                    {company && <p className="mt-1 text-xs text-stone-500">公司：{company}</p>}
-                  </div>
-
-                  {/* 選擇要加進哪個貼文方塊 */}
-                  <div className="flex flex-wrap items-end gap-3 rounded-lg bg-stone-50 border border-stone-200 p-3">
-                    <div>
-                      <label className={labelCls}>加入哪個貼文方塊？</label>
-                      <select
-                        className={inputCls + " w-64"}
-                        value={targetPost}
-                        onChange={(e) => setTargetPost(e.target.value)}
-                      >
-                        <option value="new">＋ 建立新方塊（日期自動帶今天）</option>
-                        {posts.map((p, i) => (
-                          <option key={p._id} value={p._id}>
-                            #{i + 1}｜{p.publish_date}｜{p.post_name || "（未命名貼文）"}
-                          </option>
+                {/* 依 Medium 分組 */}
+                <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+                  <h2 className="mb-3 text-sm font-semibold text-stone-700">依 Medium（媒介）分組</h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[480px] text-sm">
+                      <thead>
+                        <tr className="border-b border-stone-200 text-left text-xs text-stone-500">
+                          <th className="py-2 pr-4">Medium</th>
+                          <th className="py-2 pr-4">篇數</th>
+                          <th className="py-2 pr-4">總 reach</th>
+                          <th className="py-2 pr-4">總 link_clicks</th>
+                          <th className="py-2 pr-4">CTR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {byMedium.map((m) => (
+                          <tr key={m.medium} className="border-b border-stone-100 last:border-0">
+                            <td className="py-2 pr-4 text-stone-700">{m.medium}</td>
+                            <td className="py-2 pr-4 text-stone-500">{m.count}</td>
+                            <td className="py-2 pr-4 text-stone-500">{m.reach.toLocaleString()}</td>
+                            <td className="py-2 pr-4 text-stone-500">{m.clicks.toLocaleString()}</td>
+                            <td className="py-2 pr-4 font-medium text-indigo-700">
+                              {m.reach > 0 ? ((m.clicks / m.reach) * 100).toFixed(2) + "%" : "—"}
+                            </td>
+                          </tr>
                         ))}
-                      </select>
-                    </div>
-                    <button className={btnGhost + " bg-white"} onClick={sendToTracker}>
-                      帶入成效追蹤 →
-                    </button>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
 
-        {/* ---------- 分頁二：成效追蹤（方塊式） ---------- */}
+        {/* ---------- 分頁二：文案集散地（方塊式） ---------- */}
         {tab === "track" && (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-3">
@@ -857,7 +811,7 @@ export default function App() {
               </p>
             ) : posts.length === 0 ? (
               <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-sm text-stone-400 shadow-sm">
-                還沒有貼文方塊。按「＋ 新增貼文方塊」建立第一篇，或從「網址工具」帶入連結。
+                還沒有貼文方塊。按「＋ 新增貼文方塊」建立第一篇。
               </p>
             ) : (
               posts.map((p, i) => (
