@@ -124,6 +124,47 @@ function calcCTR(row) {
   return (clicks / reach) * 100;
 }
 
+// 依 publish_date 聚合某個數字欄位，回傳依日期排序的 [{date, value}]
+function dailySeries(posts, key) {
+  const map = {};
+  posts.forEach((p) => {
+    const d = p.publish_date || "未填日期";
+    map[d] = (map[d] || 0) + num(p[key]);
+  });
+  return Object.keys(map)
+    .sort()
+    .map((d) => ({ date: d, value: map[d] }));
+}
+
+// 依 publish_date 聚合貼文篇數
+function dailyCountSeries(posts) {
+  const map = {};
+  posts.forEach((p) => {
+    const d = p.publish_date || "未填日期";
+    map[d] = (map[d] || 0) + 1;
+  });
+  return Object.keys(map)
+    .sort()
+    .map((d) => ({ date: d, value: map[d] }));
+}
+
+// 依 publish_date 聚合 CTR（= 當日 link_clicks 總和 / 當日 reach 總和）
+function dailyCTRSeries(posts) {
+  const map = {};
+  posts.forEach((p) => {
+    const d = p.publish_date || "未填日期";
+    if (!map[d]) map[d] = { reach: 0, clicks: 0 };
+    map[d].reach += num(p.reach);
+    map[d].clicks += num(p.link_clicks);
+  });
+  return Object.keys(map)
+    .sort()
+    .map((d) => ({
+      date: d,
+      value: map[d].reach > 0 ? (map[d].clicks / map[d].reach) * 100 : 0,
+    }));
+}
+
 // 舊資料（單列式）轉成新的方塊格式
 function migrate(rows) {
   return rows.map((r) => ({
@@ -246,6 +287,78 @@ function SelectField({ label, value, options, onChange, onAddOption }) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- 小折線圖（純 SVG，不需額外套件） ----------
+function Sparkline({ series }) {
+  const width = 240;
+  const height = 56;
+  const padX = 4;
+  const padY = 6;
+
+  if (series.length === 0) {
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-14 w-full">
+        <line x1={padX} y1={height / 2} x2={width - padX} y2={height / 2} stroke="#e7e5e4" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  const values = series.map((s) => s.value);
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const stepX = series.length > 1 ? (width - padX * 2) / (series.length - 1) : 0;
+
+  const points = series.map((s, i) => {
+    const x = padX + i * stepX;
+    const y =
+      series.length > 1
+        ? height - padY - ((s.value - min) / range) * (height - padY * 2)
+        : height / 2;
+    return [x, y];
+  });
+
+  const linePoints = points.map(([x, y]) => `${x},${y}`).join(" ");
+  const areaPoints = `${padX},${height - padY} ${linePoints} ${width - padX},${height - padY}`;
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-14 w-full">
+      <polygon points={areaPoints} fill="#e0e7ff" opacity="0.6" />
+      <polyline
+        points={linePoints}
+        fill="none"
+        stroke="#4f46e5"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {points.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="2.5" fill="#4f46e5" />
+      ))}
+    </svg>
+  );
+}
+
+// 折線圖 + 總數的統計卡片
+function StatCard({ label, value, series }) {
+  const first = series[0]?.date;
+  const last = series.length > 1 ? series[series.length - 1]?.date : null;
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+      <p className="text-xs text-stone-500">{label}</p>
+      <div className="mt-2">
+        <Sparkline series={series} />
+      </div>
+      {series.length > 0 && (
+        <div className="mt-1 flex justify-between text-[10px] text-stone-400">
+          <span>{first}</span>
+          <span>{last}</span>
+        </div>
+      )}
+      <p className="mt-2 text-xl font-semibold text-stone-900">{value}</p>
     </div>
   );
 }
@@ -635,14 +748,18 @@ export default function App() {
   const overallCTR = totalReach > 0 ? (totalClicks / totalReach) * 100 : null;
 
   const statCards = [
-    { label: "貼文篇數", value: String(totalPosts) },
-    { label: "總 reach", value: totalReach.toLocaleString() },
-    { label: "總 likes", value: totalLikes.toLocaleString() },
-    { label: "總 shares", value: totalShares.toLocaleString() },
-    { label: "總 comments", value: totalComments.toLocaleString() },
-    { label: "總 link_clicks", value: totalClicks.toLocaleString() },
-    { label: "總增加粉絲數", value: totalFans.toLocaleString() },
-    { label: "整體 CTR", value: overallCTR === null ? "—" : overallCTR.toFixed(2) + "%" },
+    { label: "貼文篇數", value: String(totalPosts), series: dailyCountSeries(posts) },
+    { label: "總 reach", value: totalReach.toLocaleString(), series: dailySeries(posts, "reach") },
+    { label: "總 likes", value: totalLikes.toLocaleString(), series: dailySeries(posts, "likes") },
+    { label: "總 shares", value: totalShares.toLocaleString(), series: dailySeries(posts, "shares") },
+    { label: "總 comments", value: totalComments.toLocaleString(), series: dailySeries(posts, "comments") },
+    { label: "總 link_clicks", value: totalClicks.toLocaleString(), series: dailySeries(posts, "link_clicks") },
+    { label: "總增加粉絲數", value: totalFans.toLocaleString(), series: dailySeries(posts, "fans_gained") },
+    {
+      label: "整體 CTR",
+      value: overallCTR === null ? "—" : overallCTR.toFixed(2) + "%",
+      series: dailyCTRSeries(posts),
+    },
   ];
 
   const ranked = posts
@@ -697,12 +814,9 @@ export default function App() {
         {tab === "dashboard" && (
           <div className="space-y-5">
             {/* 總覽卡片 */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {statCards.map((c) => (
-                <div key={c.label} className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs text-stone-500">{c.label}</p>
-                  <p className="mt-1 text-xl font-semibold text-stone-900">{c.value}</p>
-                </div>
+                <StatCard key={c.label} label={c.label} value={c.value} series={c.series} />
               ))}
             </div>
 
