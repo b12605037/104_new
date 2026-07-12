@@ -119,9 +119,125 @@ function migrate(rows) {
   }));
 }
 
+// ---------- 下拉選單選項 ----------
+
+const OPT_KEY = "jpt:options";
+
+const defaultOptions = {
+  theme: ["一般職促文"],
+  format: ["文字", "圖片"],
+  medium: ["雅婷理組帳號", "雅婷文組帳號"],
+};
+
+function loadOptions() {
+  try {
+    const raw = localStorage.getItem(OPT_KEY);
+    const saved = raw ? JSON.parse(raw) : {};
+    // 預設選項在前，之後自己新增的接在後面（去重）
+    const merged = {};
+    for (const k of Object.keys(defaultOptions)) {
+      const extra = Array.isArray(saved[k]) ? saved[k] : [];
+      merged[k] = [...new Set([...defaultOptions[k], ...extra])];
+    }
+    return merged;
+  } catch {
+    return { ...defaultOptions };
+  }
+}
+
+function saveOptions(opts) {
+  try {
+    localStorage.setItem(OPT_KEY, JSON.stringify(opts));
+  } catch {
+    // 存不進去就只保留在畫面上
+  }
+}
+
+// 下拉選單欄位；傳入 onAddOption 時，選單最下面會多一個「＋ 新增選項…」
+function SelectField({ label, value, options, onChange, onAddOption }) {
+  const [adding, setAdding] = useState(false);
+  const [newOpt, setNewOpt] = useState("");
+
+  const inputCls =
+    "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+  const labelCls = "block text-xs font-medium text-stone-500 mb-1";
+
+  // 舊資料的值若不在選項清單裡，也要能顯示出來
+  const list = value && !options.includes(value) ? [value, ...options] : options;
+
+  const confirmAdd = () => {
+    const v = newOpt.trim();
+    if (v) {
+      if (!options.includes(v)) onAddOption(v);
+      onChange(v);
+    }
+    setAdding(false);
+    setNewOpt("");
+  };
+
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {!adding ? (
+        <select
+          className={inputCls}
+          value={value}
+          onChange={(e) => {
+            if (e.target.value === "__add__") {
+              setAdding(true);
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+        >
+          <option value="">— 請選擇 —</option>
+          {list.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          {onAddOption && <option value="__add__">＋ 新增選項…</option>}
+        </select>
+      ) : (
+        <div className="flex gap-1">
+          <input
+            className={inputCls}
+            autoFocus
+            placeholder="輸入新選項名稱"
+            value={newOpt}
+            onChange={(e) => setNewOpt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmAdd();
+              if (e.key === "Escape") {
+                setAdding(false);
+                setNewOpt("");
+              }
+            }}
+          />
+          <button
+            className="shrink-0 rounded-md bg-indigo-600 px-2.5 text-sm font-medium text-white hover:bg-indigo-700"
+            onClick={confirmAdd}
+          >
+            加入
+          </button>
+          <button
+            className="shrink-0 rounded-md border border-stone-300 px-2.5 text-sm text-stone-500 hover:bg-stone-100"
+            onClick={() => {
+              setAdding(false);
+              setNewOpt("");
+            }}
+          >
+            取消
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- 貼文方塊 ----------
 
-function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, onCopy, copied }) {
+function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, onCopy, copied, options, onAddOption }) {
   const [linkInput, setLinkInput] = useState("");
   const [linkErr, setLinkErr] = useState("");
   const [fetchingLinkId, setFetchingLinkId] = useState(null);
@@ -170,12 +286,6 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
     setFetchingLinkId(null);
   };
 
-  const fields = [
-    { k: "post_name", label: "post_name（貼文名稱）", w: "flex-1 min-w-56" },
-    { k: "theme", label: "theme（主題）", w: "w-40" },
-    { k: "format", label: "format（形式）", w: "w-36" },
-    { k: "medium", label: "Medium（媒介）", w: "w-36" },
-  ];
   const numFields = [
     { k: "reach", label: "reach" },
     { k: "likes", label: "likes" },
@@ -221,16 +331,39 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
       <div className="space-y-4 px-5 py-4">
         {/* 基本欄位 */}
         <div className="flex flex-wrap gap-3">
-          {fields.map((f) => (
-            <div key={f.k} className={f.w}>
-              <label className={labelCls}>{f.label}</label>
-              <input
-                className={inputCls}
-                value={post[f.k]}
-                onChange={(e) => set(f.k, e.target.value)}
-              />
-            </div>
-          ))}
+          <div className="flex-1 min-w-56">
+            <label className={labelCls}>post_name（貼文名稱）</label>
+            <input
+              className={inputCls}
+              value={post.post_name}
+              onChange={(e) => set("post_name", e.target.value)}
+            />
+          </div>
+          <div className="w-48">
+            <SelectField
+              label="theme（主題）"
+              value={post.theme}
+              options={options.theme}
+              onChange={(v) => set("theme", v)}
+              onAddOption={(v) => onAddOption("theme", v)}
+            />
+          </div>
+          <div className="w-36">
+            <SelectField
+              label="format（形式）"
+              value={post.format}
+              options={options.format}
+              onChange={(v) => set("format", v)}
+            />
+          </div>
+          <div className="w-44">
+            <SelectField
+              label="Medium（媒介）"
+              value={post.medium}
+              options={options.medium}
+              onChange={(v) => set("medium", v)}
+            />
+          </div>
         </div>
 
         {/* 數字欄位 */}
@@ -259,10 +392,15 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
           </div>
         </div>
 
-        {/* 備註 */}
+        {/* 文案 */}
         <div>
-          <label className={labelCls}>備註</label>
-          <input className={inputCls} value={post.note} onChange={(e) => set("note", e.target.value)} />
+          <label className={labelCls}>文案</label>
+          <textarea
+            className={inputCls + " min-h-20 resize-y"}
+            placeholder="貼上這篇貼文的文案內容"
+            value={post.note}
+            onChange={(e) => set("note", e.target.value)}
+          />
         </div>
 
         {/* 連結區 */}
@@ -359,6 +497,16 @@ export default function App() {
 
   // --- 貼文方塊狀態 ---
   const [posts, setPosts] = useState([]);
+  const [options, setOptions] = useState(defaultOptions);
+
+  // 新增下拉選單選項（目前 theme 開放新增），並存進 localStorage
+  const addOption = (kind, value) => {
+    setOptions((prev) => {
+      const next = { ...prev, [kind]: [...prev[kind], value] };
+      saveOptions(next);
+      return next;
+    });
+  };
   const [loaded, setLoaded] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
   const saveTimer = useRef(null);
@@ -366,6 +514,7 @@ export default function App() {
   // 載入已儲存資料（含舊格式轉換）
   useEffect(() => {
     setPosts(migrate(loadPosts()));
+    setOptions(loadOptions());
     setLoaded(true);
   }, []);
 
@@ -472,7 +621,7 @@ export default function App() {
 
   // --- 匯出 CSV（一列一篇貼文，連結用「 | 」串接） ---
   const exportCSV = () => {
-    const headers = ["post_id","post_name","publish_date","theme","format","reach","likes","shares","comments","link_clicks","Medium","CTR","增加粉絲數量","連結數","連結","職缺名稱","備註"];
+    const headers = ["post_id","post_name","publish_date","theme","format","reach","likes","shares","comments","link_clicks","Medium","CTR","增加粉絲數量","連結數","連結","職缺名稱","文案"];
     const lines = posts.map((p, i) => {
       const ctr = calcCTR(p);
       const vals = [
@@ -665,6 +814,8 @@ export default function App() {
                   onDeleteLink={deleteLink}
                   onCopy={handleCopy}
                   copied={copied}
+                  options={options}
+                  onAddOption={addOption}
                 />
               ))
             )}
