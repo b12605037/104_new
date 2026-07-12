@@ -21,6 +21,30 @@ function cleanUrl104(raw) {
   return { ok: true, url: result };
 }
 
+// 各 Medium 對應的追蹤參數
+const MEDIUM_TRACKING = {
+  "雅婷理組帳號": { jobsource: "threads_yting", utm_source: "threads", utm_medium: "yting" },
+  "雅婷文組帳號": { jobsource: "threads_yting01", utm_source: "threads", utm_medium: "yting01" },
+};
+
+// 依照方塊選的 Medium 與建立日期產生追蹤連結，格式：
+// ?jobsource=threads_yting01&utm_source=threads&utm_medium=yting01&utm_campaign=20260626
+function buildTrackedUrl(cleanUrl, medium, publishDate) {
+  const t = MEDIUM_TRACKING[medium];
+  if (!t) return null;
+  try {
+    const u = new URL(cleanUrl);
+    u.searchParams.set("jobsource", t.jobsource);
+    u.searchParams.set("utm_source", t.utm_source);
+    u.searchParams.set("utm_medium", t.utm_medium);
+    const campaign = String(publishDate || "").replace(/-/g, "");
+    if (campaign) u.searchParams.set("utm_campaign", campaign);
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 // 複製到剪貼簿（含 fallback）
 async function copyText(text) {
   try {
@@ -470,6 +494,39 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                       })
                     }
                   />
+                  {/* 追蹤連結：依這個方塊選的 Medium 自動掛上 jobsource / utm 參數 */}
+                  {(() => {
+                    const tracked = buildTrackedUrl(l.url, post.medium, post.publish_date);
+                    if (tracked) {
+                      return (
+                        <div className="mt-1.5 flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5">
+                          <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            追蹤連結
+                          </span>
+                          <a
+                            href={tracked}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="min-w-0 flex-1 truncate text-xs text-indigo-700 hover:underline"
+                            title={tracked}
+                          >
+                            {tracked}
+                          </a>
+                          <button
+                            className="shrink-0 text-xs font-medium text-indigo-700 hover:underline"
+                            onClick={() => onCopy(tracked, l._id + "-t")}
+                          >
+                            {copied === l._id + "-t" ? "已複製 ✓" : "複製"}
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="mt-1.5 text-xs text-stone-400">
+                        先在上方選擇 Medium（媒介），就會自動產生這個帳號專用的追蹤連結。
+                      </p>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>
@@ -639,7 +696,7 @@ export default function App() {
         ctr === null ? "" : ctr.toFixed(2) + "%",
         p.fans_gained,
         p.links.length,
-        p.links.map((l) => l.url).join(" | "),
+        p.links.map((l) => buildTrackedUrl(l.url, p.medium, p.publish_date) || l.url).join(" | "),
         p.links.map((l) => l.title).filter(Boolean).join(" | "),
         p.note,
       ];
