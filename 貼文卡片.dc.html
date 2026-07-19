@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nabi-design-system-104-bfaf1309-1dfd-4b38-a1c9-589fde264388/colors_and_type.css">
+<script src="_ds/nabi-design-system-104-bfaf1309-1dfd-4b38-a1c9-589fde264388/_ds_bundle.js"></script>
+</helmet>
+<div style="overflow:hidden;border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);box-shadow:0 1px 2px rgba(41,41,41,0.04);font-family:var(--ff-zh);color:var(--fg-1);">
+
+  <!-- 標頭 -->
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 20px;background:var(--ink-150);border-bottom:1px solid var(--border-1);">
+    <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:22px;padding:0 6px;border-radius:6px;background:var(--nabi-orange);color:#fff;font-size:12px;font-weight:700;">{{ indexLabel }}</span>
+    <input type="date" value="{{ publishDate }}" onChange="{{ onDateChange }}" style="border:1px solid var(--border-2);background:#fff;border-radius:4px;padding:4px 8px;font-size:12px;color:var(--ink-800);font-family:var(--ff-zh);" />
+    <sc-if value="{{ showMedium }}" hint-placeholder-val="{{ true }}">
+      <span style="{{ mediumTagStyle }}">{{ medium }}</span>
+    </sc-if>
+    <span style="{{ ctrChipStyle }}">CTR {{ ctrText }}</span>
+    <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--fg-2);">
+      <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8.2 11.8l3.6-3.6M6.6 12.9l-1.4 1.4a2.7 2.7 0 003.8 3.8l1.9-1.9M13.4 7.1l1.4-1.4a2.7 2.7 0 00-3.8-3.8L9.1 3.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      {{ linksCount }}
+    </span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <sc-if value="{{ justSaved }}" hint-placeholder-val="{{ false }}">
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:var(--sem-success);">✓ 已儲存</span>
+      </sc-if>
+      <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ onSave }}" style="display:inline-flex;align-items:center;gap:4px;border:none;border-radius:4px;background:var(--nabi-orange);color:#fff;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:var(--nabi-orange-hover)">儲存</button>
+      </sc-if>
+      <sc-if value="{{ isView }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ onEdit }}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border-2);border-radius:4px;background:#fff;color:var(--ink-800);padding:6px 12px;font-size:13px;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:var(--nabi-peach-100);border-color:var(--nabi-orange)">編輯</button>
+      </sc-if>
+      <button onClick="{{ onDelete }}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border-1);border-radius:4px;background:#fff;color:var(--sem-error);padding:6px 12px;font-size:13px;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:#fdecee">刪除</button>
+    </div>
+  </div>
+
+  <!-- 編輯模式 -->
+  <sc-if value="{{ isEdit }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:20px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--fg-2);margin-bottom:6px;">貼文名稱</label>
+          <input value="{{ postName }}" onChange="{{ onNameChange }}" style="width:100%;box-sizing:border-box;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 12px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--fg-2);margin-bottom:6px;">主題</label>
+          <sc-if value="{{ adding }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;gap:6px;">
+              <input value="{{ newOpt }}" onChange="{{ onNewOptChange }}" onKeyDown="{{ onNewOptKey }}" placeholder="輸入新主題" style="flex:1;min-width:0;border:1px solid var(--border-2);border-radius:4px;padding:8px 10px;font-size:14px;font-family:var(--ff-zh);" />
+              <button onClick="{{ onConfirmAdd }}" style="border:none;border-radius:4px;background:var(--nabi-orange);color:#fff;padding:0 12px;font-size:13px;font-weight:700;cursor:pointer;">加入</button>
+              <button onClick="{{ onCancelAdd }}" style="border:1px solid var(--border-2);border-radius:4px;background:#fff;color:var(--fg-2);padding:0 12px;font-size:13px;cursor:pointer;">取消</button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ notAdding }}" hint-placeholder-val="{{ true }}">
+            <select value="{{ themeValue }}" onChange="{{ onThemeChange }}" style="width:100%;box-sizing:border-box;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 12px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);">
+              <option value="">— 請選擇 —</option>
+              <sc-for list="{{ themeList }}" as="o" hint-placeholder-count="1"><option value="{{ o }}">{{ o }}</option></sc-for>
+              <option value="__add__">＋ 新增選項…</option>
+            </select>
+          </sc-if>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--fg-2);margin-bottom:6px;">形式</label>
+          <select value="{{ formatValue }}" onChange="{{ onFormatChange }}" style="width:100%;box-sizing:border-box;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 12px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);">
+            <option value="">— 請選擇 —</option>
+            <sc-for list="{{ formatList }}" as="o" hint-placeholder-count="2"><option value="{{ o }}">{{ o }}</option></sc-for>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--fg-2);margin-bottom:6px;">媒介</label>
+          <select value="{{ mediumValue }}" onChange="{{ onMediumChange }}" style="width:100%;box-sizing:border-box;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 12px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);">
+            <option value="">— 請選擇 —</option>
+            <sc-for list="{{ mediumList }}" as="o" hint-placeholder-count="2"><option value="{{ o }}">{{ o }}</option></sc-for>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-size:12px;font-weight:700;color:var(--fg-2);">文案</label>
+          <label style="cursor:pointer;font-size:12px;font-weight:700;color:var(--nabi-orange);">＋ 附加照片
+            <input type="file" accept="image/*" multiple style="display:none;" onChange="{{ onPickImages }}" />
+          </label>
+        </div>
+        <textarea value="{{ note }}" onChange="{{ onNoteChange }}" onPaste="{{ onPaste }}" style="width:100%;box-sizing:border-box;min-height:96px;resize:vertical;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:10px 12px;font-size:14px;line-height:20px;color:var(--ink-800);font-family:var(--ff-zh);"></textarea>
+        <sc-if value="{{ hasImages }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">
+            <sc-for list="{{ imagesVM }}" as="img" hint-placeholder-count="0">
+              <div style="position:relative;">
+                <img src="{{ img.src }}" onClick="{{ img.onOpen }}" style="height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border-1);cursor:pointer;" />
+                <button onClick="{{ img.onRemove }}" style="position:absolute;top:-6px;right:-6px;height:20px;width:20px;border:none;border-radius:50%;background:var(--ink-800);color:#fff;font-size:12px;line-height:1;cursor:pointer;">×</button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="border-radius:8px;background:var(--ink-150);padding:14px 16px;">
+        <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:var(--fg-2);">成效數據</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
+          <sc-for list="{{ numFieldsVM }}" as="f" hint-placeholder-count="6">
+            <div>
+              <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:4px;">{{ f.label }}</label>
+              <input type="number" min="0" value="{{ f.value }}" onChange="{{ f.onChange }}" style="width:100%;box-sizing:border-box;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 10px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);" />
+            </div>
+          </sc-for>
+          <div>
+            <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:4px;">CTR</label>
+            <div style="{{ ctrBoxStyle }}">{{ ctrText }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- 檢視模式 -->
+  <sc-if value="{{ isView }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+        <h3 style="margin:0;font-size:16px;font-weight:700;color:var(--ink-800);">{{ postNameOrUntitled }}</h3>
+        <sc-if value="{{ showTheme }}" hint-placeholder-val="{{ false }}"><span style="border-radius:4px;background:var(--ink-200);color:var(--fg-2);padding:2px 8px;font-size:12px;font-weight:700;">{{ themeValue }}</span></sc-if>
+        <sc-if value="{{ showFormat }}" hint-placeholder-val="{{ false }}"><span style="border-radius:4px;background:var(--sup-sky);color:var(--sup-sky-ink);padding:2px 8px;font-size:12px;font-weight:700;">{{ formatValue }}</span></sc-if>
+        <sc-if value="{{ showMedium }}" hint-placeholder-val="{{ false }}"><span style="{{ mediumTagStyle }}">{{ medium }}</span></sc-if>
+      </div>
+      <sc-if value="{{ hasNote }}" hint-placeholder-val="{{ false }}">
+        <p style="white-space:pre-wrap;margin:0;border-radius:6px;background:var(--ink-150);padding:10px 14px;font-size:14px;line-height:22px;color:var(--ink-800);">{{ note }}</p>
+      </sc-if>
+      <sc-if value="{{ hasImages }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <sc-for list="{{ imagesViewVM }}" as="img" hint-placeholder-count="0">
+            <img src="{{ img.src }}" onClick="{{ img.onOpen }}" style="height:80px;width:80px;object-fit:cover;border-radius:6px;border:1px solid var(--border-1);cursor:pointer;" />
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="border-radius:8px;background:var(--ink-150);padding:12px 16px;">
+        <div style="display:flex;flex-wrap:wrap;gap:6px 20px;">
+          <sc-for list="{{ viewStats }}" as="s" hint-placeholder-count="6">
+            <span style="font-size:12px;color:var(--fg-2);">{{ s.label }} <span style="font-weight:700;color:var(--ink-800);">{{ s.value }}</span></span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- 連結區 -->
+  <div style="border-top:1px solid var(--border-1);padding:16px 20px;">
+    <div style="display:flex;gap:8px;">
+      <input value="{{ linkInput }}" onChange="{{ onLinkInput }}" onKeyDown="{{ onLinkKey }}" placeholder="貼上 104 連結" style="flex:1;min-width:0;border:1px solid var(--border-2);border-radius:4px;background:#fff;padding:8px 12px;font-size:14px;color:var(--ink-800);font-family:var(--ff-zh);" />
+      <button onClick="{{ onAddLink }}" style="flex-shrink:0;border:1px solid var(--border-2);border-radius:4px;background:#fff;color:var(--ink-800);padding:8px 16px;font-size:14px;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:var(--nabi-peach-100);border-color:var(--nabi-orange)">加入</button>
+    </div>
+    <sc-if value="{{ linkErr }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:var(--sem-error);">{{ linkErr }}</p></sc-if>
+
+    <sc-if value="{{ hasLinks }}" hint-placeholder-val="{{ false }}">
+      <ul style="margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;">
+        <sc-for list="{{ linksVM }}" as="l" hint-placeholder-count="0">
+          <li style="border:1px solid var(--border-1);border-radius:6px;padding:10px 12px;">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+              <a href="{{ l.url }}" target="_blank" rel="noreferrer" title="{{ l.url }}" style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--nabi-orange);">{{ l.url }}</a>
+              <button onClick="{{ l.onCopyMain }}" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;border:none;background:none;font-size:12px;color:var(--fg-2);cursor:pointer;">{{ l.copyMainLabel }}</button>
+              <button onClick="{{ l.onRemove }}" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;border:none;background:none;font-size:12px;color:var(--sem-error);cursor:pointer;">移除</button>
+            </div>
+            <input value="{{ l.title }}" onChange="{{ l.onTitleChange }}" placeholder="職缺名稱" style="margin-top:8px;width:100%;box-sizing:border-box;border:1px solid var(--border-1);border-radius:4px;background:var(--ink-150);padding:6px 10px;font-size:12px;color:var(--ink-800);font-family:var(--ff-zh);" />
+            <sc-if value="{{ l.tracked }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px;display:flex;align-items:center;gap:8px;border:1px solid var(--nabi-peach-200);border-radius:6px;background:var(--nabi-peach-100);padding:6px 10px;">
+                <span style="flex-shrink:0;border-radius:4px;background:var(--nabi-orange);color:#fff;padding:2px 6px;font-size:10px;font-weight:700;">追蹤連結</span>
+                <a href="{{ l.tracked }}" target="_blank" rel="noreferrer" title="{{ l.tracked }}" style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--nabi-orange-press);">{{ l.tracked }}</a>
+                <button onClick="{{ l.onCopyTracked }}" style="flex-shrink:0;border:none;background:none;font-size:12px;font-weight:700;color:var(--nabi-orange-press);cursor:pointer;">{{ l.copyTrackedLabel }}</button>
+              </div>
+            </sc-if>
+          </li>
+        </sc-for>
+      </ul>
+    </sc-if>
+  </div>
+
+  <!-- 照片放大 -->
+  <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onClosePreview }}" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);padding:16px;">
+      <img src="{{ previewImg }}" style="max-height:100%;max-width:100%;border-radius:8px;box-shadow:var(--shadow-lift);" />
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;760px&quot;,&quot;height&quot;:&quot;340px&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const p = props.post || {};
+    const hasContent = p.post_name || p.theme || p.format || p.medium || p.note;
+    this.state = { mode: hasContent ? "view" : "edit", justSaved: false, linkInput: "", linkErr: "", adding: false, newOpt: "", previewImg: "" };
+  }
+
+  set = (k, v) => this.props.onChange({ ...this.props.post, [k]: v });
+
+  numFields = [
+    { k: "reach", label: "reach" },
+    { k: "likes", label: "likes" },
+    { k: "shares", label: "shares" },
+    { k: "comments", label: "comments" },
+    { k: "link_clicks", label: "link_clicks" },
+    { k: "fans_gained", label: "增加粉絲數量" },
+  ];
+
+  onSave = () => {
+    this.props.onSaveNow && this.props.onSaveNow();
+    this.setState({ mode: "view", justSaved: true });
+    setTimeout(() => this.setState({ justSaved: false }), 1600);
+  };
+
+  addImages = async (files) => {
+    const h = this.props.h;
+    const added = [];
+    for (const f of files) {
+      if (!f || !(f.type || "").startsWith("image/")) continue;
+      try { added.push({ _id: h.uid(), dataUrl: await h.fileToDataUrl(f) }); } catch {}
+    }
+    if (added.length) this.set("images", [...(this.props.post.images || []), ...added]);
+  };
+
+  onPaste = (e) => {
+    const files = [...(e.clipboardData?.items || [])].filter((i) => i.kind === "file").map((i) => i.getAsFile()).filter(Boolean);
+    if (files.length) { e.preventDefault(); this.addImages(files); }
+  };
+
+  addLink = () => {
+    const h = this.props.h;
+    const r = h.cleanUrl104(this.state.linkInput);
+    if (!r.ok) { this.setState({ linkErr: r.error || "請先貼上網址。" }); return; }
+    if ((this.props.post.links || []).some((l) => l.url === r.url)) { this.setState({ linkErr: "這個連結已經在這篇貼文裡了。" }); return; }
+    this.setState({ linkErr: "", linkInput: "" });
+    this.props.onAddLink(this.props.post._id, { _id: h.uid(), url: r.url, title: "" });
+  };
+
+  confirmAdd = () => {
+    const v = this.state.newOpt.trim();
+    if (v) {
+      if (!(this.props.options.theme || []).includes(v)) this.props.onAddOption("theme", v);
+      this.set("theme", v);
+    }
+    this.setState({ adding: false, newOpt: "" });
+  };
+
+  renderVals() {
+    const p = this.props.post || {};
+    const h = this.props.h;
+    const mc = this.props.mc;
+    const options = this.props.options || { theme: [], format: [], medium: [] };
+    const copied = this.props.copied;
+    const images = p.images || [];
+    const links = p.links || [];
+    const ctr = h.calcCTR(p);
+
+    const ctrText = ctr === null ? "—" : ctr.toFixed(2) + "%";
+    const ctrColor = ctr === null ? "var(--fg-3)" : ctr >= 1 ? "rgb(20,120,125)" : ctr >= 0.3 ? "rgb(150,110,10)" : "var(--fg-2)";
+
+    const mediumTagStyle = { borderRadius: "4px", padding: "2px 10px", fontSize: "12px", fontWeight: 700, background: mc ? mc.bg : "var(--ink-200)", color: mc ? mc.text : "var(--fg-2)" };
+
+    const listWith = (arr, val) => (val && !arr.includes(val) ? [val, ...arr] : arr);
+
+    return {
+      indexLabel: "#" + (this.props.index + 1),
+      publishDate: p.publish_date || "",
+      onDateChange: (e) => this.set("publish_date", e.target.value),
+      showMedium: !!p.medium,
+      medium: p.medium,
+      mediumTagStyle,
+      ctrText,
+      ctrChipStyle: { borderRadius: "4px", background: "#fff", padding: "2px 8px", fontSize: "12px", fontWeight: 700, color: ctrColor, border: "1px solid var(--border-1)" },
+      ctrBoxStyle: { borderRadius: "4px", border: "1px dashed var(--border-2)", background: "#fff", padding: "8px 10px", fontSize: "14px", fontWeight: 700, color: ctrColor },
+      linksCount: links.length,
+      justSaved: this.state.justSaved,
+      isEdit: this.state.mode === "edit",
+      isView: this.state.mode === "view",
+      onEdit: () => this.setState({ mode: "edit" }),
+      onSave: this.onSave,
+      onDelete: () => this.props.onDelete(p._id),
+
+      postName: p.post_name || "",
+      postNameOrUntitled: p.post_name || "未命名貼文",
+      onNameChange: (e) => this.set("post_name", e.target.value),
+      note: p.note || "",
+      hasNote: !!p.note,
+      onNoteChange: (e) => this.set("note", e.target.value),
+      onPaste: this.onPaste,
+      onPickImages: (e) => { this.addImages([...e.target.files]); e.target.value = ""; },
+
+      adding: this.state.adding,
+      notAdding: !this.state.adding,
+      newOpt: this.state.newOpt,
+      onNewOptChange: (e) => this.setState({ newOpt: e.target.value }),
+      onNewOptKey: (e) => { if (e.key === "Enter") this.confirmAdd(); if (e.key === "Escape") this.setState({ adding: false, newOpt: "" }); },
+      onConfirmAdd: this.confirmAdd,
+      onCancelAdd: () => this.setState({ adding: false, newOpt: "" }),
+
+      themeValue: p.theme || "",
+      showTheme: !!p.theme,
+      themeList: listWith(options.theme || [], p.theme),
+      onThemeChange: (e) => { const v = e.target.value; if (v === "__add__") this.setState({ adding: true }); else this.set("theme", v); },
+      formatValue: p.format || "",
+      showFormat: !!p.format,
+      formatList: listWith(options.format || [], p.format),
+      onFormatChange: (e) => this.set("format", e.target.value),
+      mediumValue: p.medium || "",
+      mediumList: listWith(options.medium || [], p.medium),
+      onMediumChange: (e) => this.set("medium", e.target.value),
+
+      numFieldsVM: this.numFields.map((f) => ({ label: f.label, value: p[f.k] || "", onChange: (e) => this.set(f.k, e.target.value) })),
+      viewStats: this.numFields.map((f) => ({ label: f.label, value: p[f.k] || 0 })),
+
+      hasImages: images.length > 0,
+      imagesVM: images.map((img) => ({ src: img.dataUrl, onOpen: () => this.setState({ previewImg: img.dataUrl }), onRemove: () => this.set("images", images.filter((i) => i._id !== img._id)) })),
+      imagesViewVM: images.map((img) => ({ src: img.dataUrl, onOpen: () => this.setState({ previewImg: img.dataUrl }) })),
+
+      linkInput: this.state.linkInput,
+      linkErr: this.state.linkErr,
+      onLinkInput: (e) => this.setState({ linkInput: e.target.value, linkErr: "" }),
+      onLinkKey: (e) => { if (e.key === "Enter") this.addLink(); },
+      onAddLink: this.addLink,
+      hasLinks: links.length > 0,
+      linksVM: links.map((l) => {
+        const tracked = h.buildTrackedUrl(l.url, p.medium, p.publish_date);
+        return {
+          url: l.url,
+          title: l.title || "",
+          tracked,
+          copyMainLabel: copied === l._id ? "已複製 ✓" : "複製",
+          copyTrackedLabel: copied === l._id + "-t" ? "已複製 ✓" : "複製",
+          onCopyMain: () => this.props.onCopy(l.url, l._id),
+          onCopyTracked: () => this.props.onCopy(tracked, l._id + "-t"),
+          onRemove: () => this.props.onDeleteLink(p._id, l._id),
+          onTitleChange: (e) => this.props.onChange({ ...p, links: links.map((x) => (x._id === l._id ? { ...x, title: e.target.value } : x)) }),
+        };
+      }),
+
+      showPreview: !!this.state.previewImg,
+      previewImg: this.state.previewImg,
+      onClosePreview: () => this.setState({ previewImg: "" }),
+    };
+  }
+}
+</script>
+</body>
+</html>

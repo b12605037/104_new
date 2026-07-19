@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nabi-design-system-104-bfaf1309-1dfd-4b38-a1c9-589fde264388/colors_and_type.css">
+<script src="_ds/nabi-design-system-104-bfaf1309-1dfd-4b38-a1c9-589fde264388/_ds_bundle.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg-2); }
+  a { color: #6D7B86; }
+  a:hover { color: #8A9DA8; }
+</style>
+</helmet>
+<div style="min-height:100vh;background:var(--bg-2);color:var(--fg-1);font-family:var(--ff-zh);">
+  <div style="max-width:960px;margin:0 auto;padding:32px 24px 80px;">
+
+    <!-- 標頭 -->
+    <header style="display:flex;align-items:center;gap:14px;margin-bottom:24px;">
+      <div style="width:46px;height:46px;flex-shrink:0;border-radius:8px;background:#6D7B86;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;box-shadow:var(--shadow-float);">職</div>
+      <div>
+        <h1 style="margin:0;font-size:24px;line-height:1.25;font-weight:700;color:var(--ink-800);">職促文小工具</h1>
+        <p style="margin:3px 0 0;font-size:12px;color:var(--fg-2);">貼文成效追蹤 · 追蹤連結產生</p>
+      </div>
+    </header>
+
+    <!-- 分頁 -->
+    <div style="display:inline-flex;gap:4px;padding:4px;background:var(--ink-200);border-radius:999px;margin-bottom:24px;">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+        <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+      </sc-for>
+    </div>
+
+    <!-- 追蹤成效 -->
+    <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+          <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="4">
+            <div style="background:var(--bg-1);border:1px solid var(--border-1);border-radius:8px;padding:16px;">
+              <p style="margin:0;font-size:12px;color:var(--fg-2);">{{ c.label }}</p>
+              <div style="margin-top:8px;">{{ c.spark }}</div>
+              <sc-if value="{{ c.hasSeries }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--fg-3);"><span>{{ c.first }}</span><span>{{ c.last }}</span></div>
+              </sc-if>
+              <p style="margin:8px 0 0;font-size:20px;font-weight:700;color:var(--ink-800);">{{ c.value }}</p>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ dashLoading }}" hint-placeholder-val="{{ false }}">
+          <p style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:32px 20px;font-size:14px;color:var(--fg-3);margin:0;">載入中…</p>
+        </sc-if>
+        <sc-if value="{{ dashEmpty }}" hint-placeholder-val="{{ false }}">
+          <p style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:32px 20px;font-size:14px;color:var(--fg-3);margin:0;">還沒有任何貼文資料。到「文案集散地」新增貼文方塊,數據就會顯示在這裡。</p>
+        </sc-if>
+
+        <sc-if value="{{ dashData }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:20px;">
+            <div style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:20px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <h2 style="margin:0;font-size:16px;font-weight:700;color:var(--ink-800);">貼文排行（依 CTR）</h2>
+                <button onClick="{{ goTrack }}" style="border:1px solid var(--border-2);border-radius:4px;background:#fff;color:var(--ink-800);padding:6px 12px;font-size:13px;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:#E8EDEC;border-color:#6D7B86">去文案集散地看全部 →</button>
+              </div>
+              <sc-if value="{{ rankedEmpty }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:14px;color:var(--fg-3);">目前還沒有可計算 CTR 的貼文（需同時填 reach 與 link_clicks）。</p></sc-if>
+              <sc-if value="{{ hasRanked }}" hint-placeholder-val="{{ true }}">
+                <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ ranked }}" as="r" hint-placeholder-count="3">
+                    <li style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;border:1px solid var(--border-1);border-radius:6px;padding:8px 12px;">
+                      <span style="border-radius:4px;background:#6D7B86;color:#fff;padding:2px 8px;font-size:12px;font-weight:700;">{{ r.no }}</span>
+                      <span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--ink-800);">{{ r.name }}</span>
+                      <span style="font-size:12px;color:var(--fg-3);">{{ r.date }}</span>
+                      <span style="font-size:12px;color:var(--fg-3);">{{ r.medium }}</span>
+                      <span style="border-radius:4px;background:#E8EDEC;color:#556069;padding:2px 8px;font-size:12px;font-weight:700;">{{ r.ctr }}</span>
+                    </li>
+                  </sc-for>
+                </ul>
+              </sc-if>
+            </div>
+
+            <div style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:20px;">
+              <h2 style="margin:0 0 14px;font-size:16px;font-weight:700;color:var(--ink-800);">依 Medium（媒介）分組</h2>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;min-width:480px;border-collapse:collapse;font-size:14px;">
+                  <thead>
+                    <tr style="text-align:left;font-size:12px;color:var(--fg-2);border-bottom:1px solid var(--border-1);">
+                      <th style="padding:8px 16px 8px 0;font-weight:700;">Medium</th>
+                      <th style="padding:8px 16px 8px 0;font-weight:700;">篇數</th>
+                      <th style="padding:8px 16px 8px 0;font-weight:700;">總 reach</th>
+                      <th style="padding:8px 16px 8px 0;font-weight:700;">總 link_clicks</th>
+                      <th style="padding:8px 16px 8px 0;font-weight:700;">CTR</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <sc-for list="{{ byMedium }}" as="m" hint-placeholder-count="2">
+                      <tr style="border-bottom:1px solid var(--border-1);">
+                        <td style="padding:10px 16px 10px 0;color:var(--ink-800);">{{ m.medium }}</td>
+                        <td style="padding:10px 16px 10px 0;color:var(--fg-2);">{{ m.count }}</td>
+                        <td style="padding:10px 16px 10px 0;color:var(--fg-2);">{{ m.reach }}</td>
+                        <td style="padding:10px 16px 10px 0;color:var(--fg-2);">{{ m.clicks }}</td>
+                        <td style="padding:10px 16px 10px 0;font-weight:700;color:#556069;">{{ m.ctr }}</td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- 文案集散地 -->
+    <sc-if value="{{ isTrack }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+          <button onClick="{{ onAdd }}" style="display:inline-flex;align-items:center;gap:6px;border:none;border-radius:4px;background:#6D7B86;color:#fff;padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--ff-zh);" style-hover="background:#8A9DA8"><span style="font-size:16px;line-height:1;">＋</span> 新增貼文方塊</button>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+            <sc-if value="{{ saveMsg }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:rgb(150,110,10);">{{ saveMsg }}</span></sc-if>
+            <button onClick="{{ onExport }}" style="{{ exportStyle }}">匯出 CSV（共 {{ postsCount }} 篇）</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ trackLoading }}" hint-placeholder-val="{{ false }}"><p style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:24px 20px;font-size:14px;color:var(--fg-2);margin:0;">載入中…</p></sc-if>
+        <sc-if value="{{ trackEmpty }}" hint-placeholder-val="{{ false }}"><p style="border:1px solid var(--border-1);border-radius:8px;background:var(--bg-1);padding:24px 20px;font-size:14px;color:var(--fg-2);margin:0;">還沒有貼文方塊。點「新增貼文方塊」開始記錄。</p></sc-if>
+
+        <sc-for list="{{ trackPosts }}" as="p" hint-placeholder-count="2">
+          <dc-import name="貼文卡片" key="{{ p._id }}" post="{{ p }}" index="{{ p._no }}" mc="{{ p.mc }}" options="{{ options }}" h="{{ h }}" copied="{{ copied }}" on-change="{{ updatePost }}" on-delete="{{ deletePost }}" on-add-link="{{ addLinkToPost }}" on-delete-link="{{ deleteLink }}" on-copy="{{ handleCopy }}" on-add-option="{{ addOption }}" on-save-now="{{ saveNow }}" hint-size="100%,340px"></dc-import>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: "dashboard", copied: "", posts: [], options: { theme: ["一般職促文"], format: ["文字", "圖片"], medium: ["雅婷理組帳號", "雅婷文組帳號"] }, loaded: false, saveMsg: "" };
+
+  STORAGE_KEY = "jpt:posts";
+  OPT_KEY = "jpt:options";
+  defaultOptions = { theme: ["一般職促文"], format: ["文字", "圖片"], medium: ["雅婷理組帳號", "雅婷文組帳號"] };
+  MEDIUM_COLORS = [
+    { bg: "#EDF1F0", text: "#556069" },
+    { bg: "#D6DDD9", text: "#4f5a52" },
+    { bg: "#BFCCD4", text: "#3f4a54" },
+    { bg: "#DCE4E7", text: "#3a5060" },
+    { bg: "#E3E0DE", text: "#5a5450" },
+    { bg: "#E8EBED", text: "#6D7B86" },
+  ];
+  MEDIUM_TRACKING = {
+    "雅婷理組帳號": { jobsource: "threads_yting", utm_source: "threads", utm_medium: "yting" },
+    "雅婷文組帳號": { jobsource: "threads_yting01", utm_source: "threads", utm_medium: "yting01" },
+  };
+  emptyPostFields = { post_name: "", theme: "", format: "", medium: "", reach: "", likes: "", shares: "", comments: "", link_clicks: "", fans_gained: "", note: "" };
+
+  uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  num = (v) => { const n = parseFloat(String(v).replace(/,/g, "")); return isNaN(n) ? 0 : n; };
+  todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
+  calcCTR = (row) => { const reach = this.num(row.reach), clicks = this.num(row.link_clicks); return reach <= 0 ? null : (clicks / reach) * 100; };
+
+  cleanUrl104 = (raw) => {
+    const input = (raw || "").trim();
+    if (!input) return { ok: false, error: "" };
+    let u; try { u = new URL(input); } catch { return { ok: false, error: "這看起來不是有效的網址,請確認是否完整（含 https://）。" }; }
+    if (!u.hostname.includes("104.com")) return { ok: false, error: "這不是 104 的網址喔。" };
+    u.searchParams.delete("jobsource");
+    let result = u.toString();
+    if (result.endsWith("?")) result = result.slice(0, -1);
+    return { ok: true, url: result };
+  };
+
+  buildTrackedUrl = (cleanUrl, medium, publishDate) => {
+    const t = this.MEDIUM_TRACKING[medium];
+    if (!t) return null;
+    try {
+      const u = new URL(cleanUrl);
+      u.searchParams.set("jobsource", t.jobsource);
+      u.searchParams.set("utm_source", t.utm_source);
+      u.searchParams.set("utm_medium", t.utm_medium);
+      const campaign = String(publishDate || "").replace(/-/g, "");
+      if (campaign) u.searchParams.set("utm_campaign", campaign);
+      return u.toString();
+    } catch { return null; }
+  };
+
+  fileToDataUrl = (file, maxDim = 1200, quality = 0.82) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), hh = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = hh;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, hh);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject; img.src = reader.result;
+    };
+    reader.onerror = reject; reader.readAsDataURL(file);
+  });
+
+  mediumColor = (medium) => {
+    if (!medium) return null;
+    const opts = this.state.options.medium || [];
+    let i = opts.indexOf(medium);
+    if (i < 0) i = [...medium].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    return this.MEDIUM_COLORS[i % this.MEDIUM_COLORS.length];
+  };
+
+  createdOf = (r) => { if (r._created) return r._created; const t = parseInt(String(r._id || "").slice(0, 8), 36); return isNaN(t) ? 0 : t; };
+
+  loadPosts = () => { try { const raw = localStorage.getItem(this.STORAGE_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; } };
+  savePosts = (posts) => { try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(posts)); return true; } catch { return false; } };
+  migrate = (rows) => rows.map((r) => ({ _id: r._id || this.uid(), publish_date: r.publish_date || this.todayStr(), ...this.emptyPostFields, ...r, _created: this.createdOf(r), links: Array.isArray(r.links) ? r.links : [], images: Array.isArray(r.images) ? r.images : [] }));
+
+  loadOptions = () => {
+    try {
+      const raw = localStorage.getItem(this.OPT_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      const merged = {};
+      for (const k of Object.keys(this.defaultOptions)) {
+        const extra = Array.isArray(saved[k]) ? saved[k] : [];
+        merged[k] = [...new Set([...this.defaultOptions[k], ...extra])];
+      }
+      return merged;
+    } catch { return { ...this.defaultOptions }; }
+  };
+  saveOptions = (opts) => { try { localStorage.setItem(this.OPT_KEY, JSON.stringify(opts)); } catch {} };
+
+  componentDidMount() {
+    this.setState({ posts: this.migrate(this.loadPosts()), options: this.loadOptions(), loaded: true });
+    this.h = { cleanUrl104: this.cleanUrl104, buildTrackedUrl: this.buildTrackedUrl, fileToDataUrl: this.fileToDataUrl, calcCTR: this.calcCTR, uid: this.uid };
+  }
+
+  persist = (next) => {
+    this.setState({ posts: next });
+    clearTimeout(this._t);
+    this._t = setTimeout(() => { if (!this.savePosts(next)) { this.setState({ saveMsg: "儲存失敗,資料只保留在目前畫面。" }); setTimeout(() => this.setState({ saveMsg: "" }), 3000); } }, 600);
+  };
+  saveNow = () => { clearTimeout(this._t); if (!this.savePosts(this.state.posts)) { this.setState({ saveMsg: "儲存失敗,資料只保留在目前畫面。" }); setTimeout(() => this.setState({ saveMsg: "" }), 3000); } };
+
+  addPost = () => this.persist([...this.state.posts, { _id: this.uid(), _created: Date.now(), publish_date: this.todayStr(), ...this.emptyPostFields, links: [], images: [] }]);
+  updatePost = (next) => this.persist(this.state.posts.map((p) => (p._id === next._id ? next : p)));
+  deletePost = (id) => this.persist(this.state.posts.filter((p) => p._id !== id));
+  addLinkToPost = (postId, link) => this.persist(this.state.posts.map((p) => (p._id === postId ? { ...p, links: [...p.links, link] } : p)));
+  deleteLink = (postId, linkId) => this.persist(this.state.posts.map((p) => (p._id === postId ? { ...p, links: p.links.filter((l) => l._id !== linkId) } : p)));
+  addOption = (kind, value) => this.setState((s) => { const next = { ...s.options, [kind]: [...s.options[kind], value] }; this.saveOptions(next); return { options: next }; });
+
+  handleCopy = async (text, key) => {
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch {
+      try { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); ok = true; } catch { ok = false; }
+    }
+    this.setState({ copied: ok ? key : "" });
+    if (ok) setTimeout(() => this.setState({ copied: "" }), 1600);
+  };
+
+  dailySeries = (posts, key) => { const map = {}; posts.forEach((p) => { const d = p.publish_date || "未填日期"; map[d] = (map[d] || 0) + this.num(p[key]); }); return Object.keys(map).sort().map((d) => ({ date: d, value: map[d] })); };
+  dailyCountSeries = (posts) => { const map = {}; posts.forEach((p) => { const d = p.publish_date || "未填日期"; map[d] = (map[d] || 0) + 1; }); return Object.keys(map).sort().map((d) => ({ date: d, value: map[d] })); };
+  dailyCTRSeries = (posts) => { const map = {}; posts.forEach((p) => { const d = p.publish_date || "未填日期"; if (!map[d]) map[d] = { reach: 0, clicks: 0 }; map[d].reach += this.num(p.reach); map[d].clicks += this.num(p.link_clicks); }); return Object.keys(map).sort().map((d) => ({ date: d, value: map[d].reach > 0 ? (map[d].clicks / map[d].reach) * 100 : 0 })); };
+
+  sparkline = (series) => {
+    const R = React.createElement, width = 240, height = 56, padX = 4, padY = 6;
+    const svg = (...kids) => R("svg", { viewBox: `0 0 ${width} ${height}`, style: { height: 56, width: "100%", display: "block" } }, ...kids);
+    if (!series.length) return svg(R("line", { x1: padX, y1: height / 2, x2: width - padX, y2: height / 2, stroke: "var(--ink-200)", strokeWidth: 2 }));
+    const values = series.map((s) => s.value), max = Math.max(...values), min = Math.min(...values), range = (max - min) || 1;
+    const stepX = series.length > 1 ? (width - padX * 2) / (series.length - 1) : 0;
+    const pts = series.map((s, i) => [padX + i * stepX, series.length > 1 ? height - padY - ((s.value - min) / range) * (height - padY * 2) : height / 2]);
+    const line = pts.map((p) => p.join(",")).join(" ");
+    const area = `${padX},${height - padY} ${line} ${width - padX},${height - padY}`;
+    return svg(
+      R("polygon", { points: area, fill: "#D6DDD9", opacity: 0.6 }),
+      R("polyline", { points: line, fill: "none", stroke: "#6D7B86", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }),
+      pts.map((p, i) => R("circle", { key: i, cx: p[0], cy: p[1], r: 2.5, fill: "#6D7B86" }))
+    );
+  };
+
+  exportCSV = () => {
+    const sorted = this.sortedPosts(), postNo = this.postNo(sorted);
+    const headers = ["post_id", "post_name", "publish_date", "theme", "format", "reach", "likes", "shares", "comments", "link_clicks", "Medium", "CTR", "增加粉絲數量", "連結數", "連結", "職缺名稱", "文案"];
+    const lines = sorted.map((p) => {
+      const ctr = this.calcCTR(p);
+      const vals = [postNo[p._id], p.post_name, p.publish_date, p.theme, p.format, p.reach, p.likes, p.shares, p.comments, p.link_clicks, p.medium, ctr === null ? "" : ctr.toFixed(2) + "%", p.fans_gained, p.links.length, p.links.map((l) => this.buildTrackedUrl(l.url, p.medium, p.publish_date) || l.url).join(" | "), p.links.map((l) => l.title).filter(Boolean).join(" | "), p.note];
+      return vals.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
+    });
+    const csv = "\uFEFF" + headers.join(",") + "\n" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "job_posts.csv"; a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  sortedPosts = () => [...this.state.posts].sort((a, b) => String(b.publish_date || "").localeCompare(String(a.publish_date || "")) || (b._created || 0) - (a._created || 0));
+  postNo = (sorted) => { const o = {}; [...sorted].reverse().forEach((p, i) => { o[p._id] = i + 1; }); return o; };
+
+  renderVals() {
+    const { tab, posts, loaded, copied, saveMsg, options } = this.state;
+    const tabDefs = [{ id: "dashboard", label: "① 追蹤成效" }, { id: "track", label: "② 文案集散地" }];
+    const tabBase = { border: "none", borderRadius: "999px", padding: "6px 18px", fontSize: "14px", fontWeight: 700, cursor: "pointer", fontFamily: "var(--ff-zh)", transition: "all .16s ease-out" };
+    const tabs = tabDefs.map((t) => ({ label: t.label, onClick: () => this.setState({ tab: t.id }), style: tab === t.id ? { ...tabBase, background: "#fff", color: "#6D7B86", boxShadow: "var(--shadow-float)" } : { ...tabBase, background: "transparent", color: "var(--fg-2)" } }));
+
+    const sumField = (k) => posts.reduce((a, p) => a + this.num(p[k]), 0);
+    const totalReach = sumField("reach"), totalClicks = sumField("link_clicks");
+    const overallCTR = totalReach > 0 ? (totalClicks / totalReach) * 100 : null;
+    const mk = (label, value, series) => { const s = series || []; return { label, value, spark: this.sparkline(s), hasSeries: s.length > 0, first: s[0]?.date, last: s.length > 1 ? s[s.length - 1]?.date : s[0]?.date }; };
+    const statCards = [
+      mk("貼文篇數", String(posts.length), this.dailyCountSeries(posts)),
+      mk("總 reach", totalReach.toLocaleString(), this.dailySeries(posts, "reach")),
+      mk("總 likes", sumField("likes").toLocaleString(), this.dailySeries(posts, "likes")),
+      mk("總 shares", sumField("shares").toLocaleString(), this.dailySeries(posts, "shares")),
+      mk("總 comments", sumField("comments").toLocaleString(), this.dailySeries(posts, "comments")),
+      mk("總 link_clicks", totalClicks.toLocaleString(), this.dailySeries(posts, "link_clicks")),
+      mk("總增加粉絲數", sumField("fans_gained").toLocaleString(), this.dailySeries(posts, "fans_gained")),
+      mk("整體 CTR", overallCTR === null ? "—" : overallCTR.toFixed(2) + "%", this.dailyCTRSeries(posts)),
+    ];
+
+    const ranked = posts.map((p) => ({ ...p, _ctr: this.calcCTR(p) })).filter((p) => p._ctr !== null).sort((a, b) => b._ctr - a._ctr).slice(0, 5)
+      .map((p, i) => ({ no: "#" + (i + 1), name: p.post_name || "（未命名貼文）", date: p.publish_date, medium: p.medium || "—", ctr: "CTR " + p._ctr.toFixed(2) + "%" }));
+
+    const bm = {};
+    posts.forEach((p) => { const key = p.medium || "（未選擇 Medium）"; if (!bm[key]) bm[key] = { medium: key, count: 0, reach: 0, clicks: 0 }; bm[key].count += 1; bm[key].reach += this.num(p.reach); bm[key].clicks += this.num(p.link_clicks); });
+    const byMedium = Object.values(bm).sort((a, b) => b.reach - a.reach).map((m) => ({ medium: m.medium, count: m.count, reach: m.reach.toLocaleString(), clicks: m.clicks.toLocaleString(), ctr: m.reach > 0 ? ((m.clicks / m.reach) * 100).toFixed(2) + "%" : "—" }));
+
+    const sorted = this.sortedPosts(), postNo = this.postNo(sorted);
+    const trackPosts = sorted.map((p) => ({ ...p, mc: this.mediumColor(p.medium), _no: postNo[p._id] - 1 }));
+
+    const exportDisabled = posts.length === 0;
+    return {
+      tabs,
+      isDashboard: tab === "dashboard",
+      isTrack: tab === "track",
+      goTrack: () => this.setState({ tab: "track" }),
+      statCards,
+      dashLoading: !loaded,
+      dashEmpty: loaded && posts.length === 0,
+      dashData: loaded && posts.length > 0,
+      ranked,
+      rankedEmpty: ranked.length === 0,
+      hasRanked: ranked.length > 0,
+      byMedium,
+      trackLoading: !loaded,
+      trackEmpty: loaded && posts.length === 0,
+      trackPosts,
+      saveMsg,
+      postsCount: posts.length,
+      onAdd: this.addPost,
+      onExport: exportDisabled ? () => {} : this.exportCSV,
+      exportStyle: { border: "1px solid var(--border-2)", borderRadius: "4px", background: "#fff", color: exportDisabled ? "var(--fg-3)" : "var(--ink-800)", padding: "8px 14px", fontSize: "14px", cursor: exportDisabled ? "not-allowed" : "pointer", opacity: exportDisabled ? 0.5 : 1, fontFamily: "var(--ff-zh)" },
+      options,
+      copied,
+      h: this.h,
+      updatePost: this.updatePost,
+      deletePost: this.deletePost,
+      addLinkToPost: this.addLinkToPost,
+      deleteLink: this.deleteLink,
+      handleCopy: this.handleCopy,
+      addOption: this.addOption,
+      saveNow: this.saveNow,
+    };
+  }
+}
+</script>
+</body>
+</html>
