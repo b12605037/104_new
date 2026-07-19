@@ -113,6 +113,51 @@ async function copyText(text) {
   }
 }
 
+// ---------- 媒介顏色（莫蘭迪色系） ----------
+// 依 Medium 選項順序輪流指派；header 用來填滿方塊標頭（日期那一列）的底色
+const MEDIUM_COLORS = [
+  { header: "bg-[#DDE6EC]", text: "text-[#54707F]", badge: "bg-[#DDE6EC] text-[#54707F]" }, // 霧藍
+  { header: "bg-[#EFDFDB]", text: "text-[#96655E]", badge: "bg-[#EFDFDB] text-[#96655E]" }, // 豆沙粉
+  { header: "bg-[#E1E7DB]", text: "text-[#68795C]", badge: "bg-[#E1E7DB] text-[#68795C]" }, // 灰綠
+  { header: "bg-[#F0E8D9]", text: "text-[#8C774E]", badge: "bg-[#F0E8D9] text-[#8C774E]" }, // 奶杏
+  { header: "bg-[#E5E0EB]", text: "text-[#73678A]", badge: "bg-[#E5E0EB] text-[#73678A]" }, // 灰紫
+  { header: "bg-[#DBE8E4]", text: "text-[#5C7F76]", badge: "bg-[#DBE8E4] text-[#5C7F76]" }, // 灰青
+];
+
+function mediumColor(medium, mediumOptions = []) {
+  if (!medium) return null;
+  let i = mediumOptions.indexOf(medium);
+  if (i < 0) {
+    // 不在選項清單裡的舊資料：用字串雜湊決定顏色，保持穩定
+    i = [...medium].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  }
+  return MEDIUM_COLORS[i % MEDIUM_COLORS.length];
+}
+
+// ---------- 圖片：壓縮成 dataURL（存 localStorage 用，長邊縮到 1200px） ----------
+function fileToDataUrl(file, maxDim = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ---------- 本機儲存（localStorage） ----------
 const STORAGE_KEY = "jpt:posts";
 
@@ -211,6 +256,13 @@ function dailyCTRSeries(posts) {
     }));
 }
 
+// 從 _id 反推建立時間（uid 開頭是 Date.now() 的 36 進位）
+function createdOf(r) {
+  if (r._created) return r._created;
+  const t = parseInt(String(r._id || "").slice(0, 8), 36);
+  return isNaN(t) ? 0 : t;
+}
+
 // 舊資料（單列式）轉成新的方塊格式
 function migrate(rows) {
   return rows.map((r) => ({
@@ -218,7 +270,9 @@ function migrate(rows) {
     publish_date: r.publish_date || todayStr(),
     ...emptyPostFields,
     ...r,
+    _created: createdOf(r),
     links: Array.isArray(r.links) ? r.links : [],
+    images: Array.isArray(r.images) ? r.images : [],
   }));
 }
 
@@ -418,24 +472,25 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
   const [justSaved, setJustSaved] = useState(false);
   const [linkInput, setLinkInput] = useState("");
   const [linkErr, setLinkErr] = useState("");
+  const [previewImg, setPreviewImg] = useState("");
 
   const inputCls =
-    "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow";
+    "w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:border-stone-400";
   const labelCls = "block text-xs font-medium text-stone-500 mb-1";
-  const btnGhost =
-    "rounded-md border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   const set = (k, v) => onChange({ ...post, [k]: v });
   const ctr = calcCTR(post);
+  const mc = mediumColor(post.medium, options.medium);
+  const images = post.images || [];
 
-  const ctrBadgeCls =
+  const ctrTextCls =
     ctr === null
-      ? "bg-stone-100 text-stone-400"
+      ? "text-stone-400"
       : ctr >= 1
-      ? "bg-emerald-50 text-emerald-700"
+      ? "text-emerald-700"
       : ctr >= 0.3
-      ? "bg-amber-50 text-amber-700"
-      : "bg-stone-100 text-stone-500";
+      ? "text-amber-700"
+      : "text-stone-500";
 
   const handleSave = () => {
     onSaveNow?.();
@@ -459,6 +514,33 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
     onAddLink(post._id, { _id: uid(), url: r.url, title: "" });
   };
 
+  // --- 照片：貼上或選檔，壓縮後存進這篇貼文 ---
+  const addImages = async (files) => {
+    const added = [];
+    for (const f of files) {
+      if (!f || !f.type?.startsWith("image/")) continue;
+      try {
+        added.push({ _id: uid(), dataUrl: await fileToDataUrl(f) });
+      } catch {
+        // 讀取失敗就略過這張
+      }
+    }
+    if (added.length) onChange({ ...post, images: [...images, ...added] });
+  };
+
+  const handlePaste = (e) => {
+    const files = [...(e.clipboardData?.items || [])]
+      .filter((i) => i.kind === "file")
+      .map((i) => i.getAsFile())
+      .filter(Boolean);
+    if (files.length) {
+      e.preventDefault();
+      addImages(files);
+    }
+  };
+
+  const removeImage = (id) => onChange({ ...post, images: images.filter((i) => i._id !== id) });
+
   const numFields = [
     { k: "reach", label: "reach" },
     { k: "likes", label: "likes" },
@@ -468,51 +550,81 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
     { k: "fans_gained", label: "增加粉絲數量" },
   ];
 
+  const imageThumbs = (editable) =>
+    images.length > 0 && (
+      <div className="mt-2 flex flex-wrap gap-2">
+        {images.map((img) => (
+          <div key={img._id} className="relative">
+            <img
+              src={img.dataUrl}
+              alt=""
+              className="h-20 w-20 cursor-pointer rounded-md border border-stone-200 object-cover"
+              onClick={() => setPreviewImg(img.dataUrl)}
+            />
+            {editable && (
+              <button
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-stone-700 text-xs leading-none text-white hover:bg-stone-900"
+                onClick={() => removeImage(img._id)}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+
   return (
-    <div className="rounded-xl border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* 方塊標頭：自動編號 + 自動日期 + 編輯／儲存／刪除 */}
-      <div className="flex flex-wrap items-center gap-2.5 rounded-t-xl border-b border-stone-100 bg-stone-50/70 px-5 py-3">
-        <span className="inline-flex items-center rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-sm">
+      {/* 標頭：底色填滿媒介的莫蘭迪色（編號 + 日期 + CTR + 操作） */}
+      <div
+        className={
+          "flex flex-wrap items-center gap-2.5 border-b border-black/5 px-5 py-2.5 " +
+          (mc ? mc.header : "bg-stone-100")
+        }
+      >
+        <span className="inline-flex items-center rounded-md bg-white/80 px-2 py-0.5 text-xs font-semibold text-stone-700 shadow-sm">
           #{index + 1}
         </span>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={post.publish_date}
-            onChange={(e) => set("publish_date", e.target.value)}
-          />
-        </div>
-        <span className={"inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium " + ctrBadgeCls}>
+        <input
+          type="date"
+          className="rounded-md border border-white/70 bg-white/75 px-2.5 py-1 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-400"
+          value={post.publish_date}
+          onChange={(e) => set("publish_date", e.target.value)}
+        />
+        {post.medium && (
+          <span className={"text-xs font-medium " + (mc ? mc.text : "text-stone-600")}>{post.medium}</span>
+        )}
+        <span className={"rounded-md bg-white/75 px-2 py-0.5 text-xs font-medium " + ctrTextCls}>
           CTR {ctr === null ? "—" : ctr.toFixed(2) + "%"}
         </span>
-        <span className="inline-flex items-center gap-1 text-xs text-stone-400">
+        <span className="inline-flex items-center gap-1 text-xs text-stone-500">
           <IconLink className="h-3.5 w-3.5" /> {post.links.length}
         </span>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5">
           {justSaved && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
               <IconCheck className="h-3.5 w-3.5" /> 已儲存
             </span>
           )}
           {mode === "edit" ? (
             <button
-              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-1 rounded-md bg-stone-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-800 transition-colors"
               onClick={handleSave}
             >
               <IconCheck /> 儲存
             </button>
           ) : (
             <button
-              className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+              className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white/85 px-2.5 py-1 text-xs text-stone-600 hover:bg-white transition-colors"
               onClick={() => setMode("edit")}
             >
               <IconPencil /> 編輯
             </button>
           )}
           <button
-            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+            className="inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white/85 px-2.5 py-1 text-xs text-red-500 hover:bg-white transition-colors"
             onClick={() => onDelete(post._id)}
           >
             <IconTrash /> 刪除
@@ -523,155 +635,139 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
       {mode === "edit" ? (
         <div className="space-y-4 px-5 py-4">
           {/* 基本欄位 */}
-          <div className="flex flex-wrap gap-3 rounded-lg bg-stone-50 p-3.5">
-            <div className="flex-1 min-w-56">
-              <label className={labelCls}>post_name（貼文名稱）</label>
-              <input
-                className={inputCls}
-                value={post.post_name}
-                onChange={(e) => set("post_name", e.target.value)}
-              />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="sm:col-span-2 lg:col-span-1">
+              <label className={labelCls}>貼文名稱</label>
+              <input className={inputCls} value={post.post_name} onChange={(e) => set("post_name", e.target.value)} />
             </div>
-            <div className="w-48">
-              <SelectField
-                label="theme（主題）"
-                value={post.theme}
-                options={options.theme}
-                onChange={(v) => set("theme", v)}
-                onAddOption={(v) => onAddOption("theme", v)}
-              />
-            </div>
-            <div className="w-36">
-              <SelectField
-                label="format（形式）"
-                value={post.format}
-                options={options.format}
-                onChange={(v) => set("format", v)}
-              />
-            </div>
-            <div className="w-44">
-              <SelectField
-                label="Medium（媒介）"
-                value={post.medium}
-                options={options.medium}
-                onChange={(v) => set("medium", v)}
-              />
-            </div>
+            <SelectField
+              label="主題"
+              value={post.theme}
+              options={options.theme}
+              onChange={(v) => set("theme", v)}
+              onAddOption={(v) => onAddOption("theme", v)}
+            />
+            <SelectField label="形式" value={post.format} options={options.format} onChange={(v) => set("format", v)} />
+            <SelectField label="媒介" value={post.medium} options={options.medium} onChange={(v) => set("medium", v)} />
           </div>
 
-          {/* 數字欄位 */}
-          <div className="flex flex-wrap gap-3 rounded-lg bg-stone-50 p-3.5">
-            {numFields.map((f) => (
-              <div key={f.k} className="w-28">
-                <label className={labelCls}>{f.label}</label>
-                <input
-                  type="number"
-                  min="0"
-                  className={inputCls}
-                  value={post[f.k]}
-                  onChange={(e) => set(f.k, e.target.value)}
-                />
-              </div>
-            ))}
-            {/* CTR 自動計算欄位：link_clicks / reach */}
-            <div className="w-32">
-              <label className={labelCls}>CTR（自動 = link_clicks / reach）</label>
-              <div
-                className="rounded-md border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700"
-                title="CTR = link_clicks ÷ reach × 100%，填好兩個欄位就會自動算"
-              >
-                {ctr === null ? "—" : ctr.toFixed(2) + "%"}
-              </div>
-            </div>
-          </div>
-
-          {/* 文案 */}
+          {/* 文案（可直接貼上照片） */}
           <div>
-            <label className={labelCls}>文案</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="text-xs font-medium text-stone-500">文案</label>
+              <label className="cursor-pointer text-xs font-medium text-stone-600 hover:underline">
+                ＋ 附加照片
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    addImages([...e.target.files]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
             <textarea
               className={inputCls + " min-h-24 resize-y"}
-              placeholder="貼上這篇貼文的文案內容"
               value={post.note}
               onChange={(e) => set("note", e.target.value)}
+              onPaste={handlePaste}
             />
+            {imageThumbs(true)}
           </div>
 
-          <div className="flex justify-end">
-            <button
-              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
-              onClick={handleSave}
-            >
-              <IconCheck className="h-4 w-4" /> 儲存並收合
-            </button>
+          {/* 成效數據：莫蘭迪色塊區隔，固定放最下面 */}
+          <div className="rounded-lg bg-[#F1EFEA] px-4 py-3.5">
+            <p className="mb-2.5 text-xs font-semibold text-stone-500">成效數據</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {numFields.map((f) => (
+                <div key={f.k}>
+                  <label className={labelCls}>{f.label}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputCls}
+                    value={post[f.k]}
+                    onChange={(e) => set(f.k, e.target.value)}
+                  />
+                </div>
+              ))}
+              <div>
+                <label className={labelCls}>CTR</label>
+                <div className={"rounded-md border border-dashed border-stone-300 bg-white px-3 py-2 text-sm font-medium " + ctrTextCls}>
+                  {ctr === null ? "—" : ctr.toFixed(2) + "%"}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
         <div className="space-y-3 px-5 py-4">
-          <div>
-            <h3 className="text-base font-semibold text-stone-800">
-              {post.post_name || <span className="text-stone-400">（未命名貼文）</span>}
-            </h3>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {post.theme && (
-                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
-                  {post.theme}
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-stone-800">{post.post_name || "未命名貼文"}</h3>
+            {post.theme && (
+              <span className="rounded-md bg-[#E7E4DE] px-2 py-0.5 text-xs font-medium text-stone-600">{post.theme}</span>
+            )}
+            {post.format && (
+              <span className="rounded-md bg-[#E4E9EC] px-2 py-0.5 text-xs font-medium text-stone-600">{post.format}</span>
+            )}
+            {post.medium && (
+              <span className={"rounded-md px-2 py-0.5 text-xs font-medium " + (mc ? mc.badge : "bg-stone-100 text-stone-600")}>
+                {post.medium}
+              </span>
+            )}
+          </div>
+
+          {post.note && (
+            <p className="whitespace-pre-wrap rounded-md bg-stone-50 px-3.5 py-2.5 text-sm text-stone-600">{post.note}</p>
+          )}
+          {imageThumbs(false)}
+
+          {/* 成效數據：莫蘭迪色塊區隔，固定放最下面 */}
+          <div className="rounded-lg bg-[#F1EFEA] px-4 py-2.5">
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-stone-500">
+              {numFields.map((f) => (
+                <span key={f.k}>
+                  {f.label} <span className="font-semibold text-stone-700">{post[f.k] || 0}</span>
                 </span>
-              )}
-              {post.format && (
-                <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
-                  {post.format}
-                </span>
-              )}
-              {post.medium && (
-                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                  {post.medium}
-                </span>
-              )}
-              {!post.theme && !post.format && !post.medium && (
-                <span className="text-xs text-stone-400">尚未設定主題／形式／媒介，點「編輯」補上</span>
-              )}
+              ))}
             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {numFields.map((f) => (
-              <div key={f.k} className="rounded-lg bg-stone-50 px-2.5 py-2 text-center">
-                <p className="text-[10px] text-stone-400">{f.label}</p>
-                <p className="text-sm font-semibold text-stone-700">{post[f.k] || 0}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-lg bg-stone-50 px-3 py-2.5 text-sm text-stone-600 whitespace-pre-wrap">
-            {post.note || <span className="text-stone-400">（尚未填寫文案，點「編輯」新增）</span>}
           </div>
         </div>
       )}
 
-      {/* 連結區：不受編輯／儲存模式影響，隨時可加連結 */}
-      <div className="mx-5 mb-5 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-4">
-        <label className={labelCls}>這篇貼文的 104 連結（可加多個，會自動清掉 jobsource）</label>
-        <div className="flex gap-2">
-          <input
-            className={inputCls}
-            placeholder="https://www.104.com.tw/job/xxxxx?jobsource=..."
-            value={linkInput}
-            onChange={(e) => {
-              setLinkInput(e.target.value);
-              setLinkErr("");
-            }}
-            onKeyDown={(e) => e.key === "Enter" && addLink()}
-          />
-          <button className={btnGhost + " shrink-0 bg-white"} onClick={addLink}>
-            加入連結
-          </button>
-        </div>
-        {linkErr && <p className="mt-2 text-sm text-red-600">{linkErr}</p>}
+      {/* 連結區：輸入框只在編輯模式出現；收合時只顯示已加入的連結 */}
+      {(mode === "edit" || post.links.length > 0) && (
+      <div className="border-t border-stone-100 px-5 py-4">
+        {mode === "edit" && (
+          <>
+            <div className="flex gap-2">
+              <input
+                className={inputCls}
+                value={linkInput}
+                onChange={(e) => {
+                  setLinkInput(e.target.value);
+                  setLinkErr("");
+                }}
+                onKeyDown={(e) => e.key === "Enter" && addLink()}
+              />
+              <button
+                className="shrink-0 rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                onClick={addLink}
+              >
+                加入連結
+              </button>
+            </div>
+            {linkErr && <p className="mt-1.5 text-sm text-red-600">{linkErr}</p>}
+          </>
+        )}
 
         {post.links.length > 0 && (
-          <ul className="mt-3 space-y-2">
+          <ul className={"space-y-2 " + (mode === "edit" ? "mt-2.5" : "")}>
             {post.links.map((l) => (
-              <li key={l._id} className="rounded-md border border-stone-200 bg-white px-3 py-2 shadow-sm">
+              <li key={l._id} className="rounded-md border border-stone-200 px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={l.url}
@@ -704,8 +800,8 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                   </button>
                 </div>
                 <input
-                  className="mt-1.5 w-full rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                  placeholder="職缺名稱（手動輸入）"
+                  className="mt-1.5 w-full rounded border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-600 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  placeholder="職缺名稱"
                   value={l.title}
                   onChange={(e) =>
                     onChange({
@@ -720,34 +816,28 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
                 {/* 追蹤連結：依這個方塊選的 Medium 自動掛上 jobsource / utm 參數 */}
                 {(() => {
                   const tracked = buildTrackedUrl(l.url, post.medium, post.publish_date);
-                  if (tracked) {
-                    return (
-                      <div className="mt-1.5 flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5">
-                        <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                          追蹤連結
-                        </span>
-                        <a
-                          href={tracked}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="min-w-0 flex-1 truncate text-xs text-indigo-700 hover:underline"
-                          title={tracked}
-                        >
-                          {tracked}
-                        </a>
-                        <button
-                          className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-indigo-700 hover:underline"
-                          onClick={() => onCopy(tracked, l._id + "-t")}
-                        >
-                          {copied === l._id + "-t" ? "已複製 ✓" : "複製"}
-                        </button>
-                      </div>
-                    );
-                  }
+                  if (!tracked) return null;
                   return (
-                    <p className="mt-1.5 text-xs text-stone-400">
-                      先在上方選擇 Medium（媒介），就會自動產生這個帳號專用的追蹤連結。
-                    </p>
+                    <div className="mt-1.5 flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5">
+                      <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        追蹤連結
+                      </span>
+                      <a
+                        href={tracked}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-xs text-indigo-700 hover:underline"
+                        title={tracked}
+                      >
+                        {tracked}
+                      </a>
+                      <button
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-indigo-700 hover:underline"
+                        onClick={() => onCopy(tracked, l._id + "-t")}
+                      >
+                        {copied === l._id + "-t" ? "已複製 ✓" : "複製"}
+                      </button>
+                    </div>
                   );
                 })()}
               </li>
@@ -755,6 +845,17 @@ function PostCard({ post, index, onChange, onDelete, onAddLink, onDeleteLink, on
           </ul>
         )}
       </div>
+      )}
+
+      {/* 照片放大預覽 */}
+      {previewImg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPreviewImg("")}
+        >
+          <img src={previewImg} alt="" className="max-h-full max-w-full rounded-lg shadow-lg" />
+        </div>
+      )}
     </div>
   );
 }
@@ -816,9 +917,11 @@ export default function App() {
   const addPost = (extra = {}) => {
     const p = {
       _id: uid(),
+      _created: Date.now(),
       publish_date: todayStr(), // 自動帶入建立日期
       ...emptyPostFields,
       links: [],
+      images: [],
       ...extra,
     };
     persist([...posts, p]);
@@ -848,13 +951,24 @@ export default function App() {
     if (ok) setTimeout(() => setCopied(""), 1600);
   };
 
+  // --- 依日期排序（新→舊；同一天內較新建立的在前），編號依日期舊→新遞增 ---
+  const sortedPosts = [...posts].sort(
+    (a, b) =>
+      String(b.publish_date || "").localeCompare(String(a.publish_date || "")) ||
+      (b._created || 0) - (a._created || 0)
+  );
+  const postNo = {};
+  [...sortedPosts].reverse().forEach((p, i) => {
+    postNo[p._id] = i + 1;
+  });
+
   // --- 匯出 CSV（一列一篇貼文，連結用「 | 」串接） ---
   const exportCSV = () => {
     const headers = ["post_id","post_name","publish_date","theme","format","reach","likes","shares","comments","link_clicks","Medium","CTR","增加粉絲數量","連結數","連結","職缺名稱","文案"];
-    const lines = posts.map((p, i) => {
+    const lines = sortedPosts.map((p) => {
       const ctr = calcCTR(p);
       const vals = [
-        i + 1,
+        postNo[p._id],
         p.post_name,
         p.publish_date,
         p.theme,
@@ -944,12 +1058,7 @@ export default function App() {
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-sm">
             職
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
-            <p className="mt-0.5 text-sm text-stone-500">
-              追蹤成效總覽，以及方塊式貼文文案管理（post_id 與 publish_date 自動帶入）。
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
         </header>
 
         {/* 分頁 */}
@@ -1066,17 +1175,14 @@ export default function App() {
 
         {/* ---------- 分頁二：文案集散地（方塊式） ---------- */}
         {tab === "track" && (
-          <div className="space-y-5">
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 className={btnPrimary + " inline-flex items-center gap-1.5"}
                 onClick={() => addPost()}
               >
                 <span className="text-base leading-none">＋</span> 新增貼文方塊
               </button>
-              <span className="hidden text-xs text-stone-400 sm:inline">
-                post_id 依方塊順序自動編號；publish_date 自動帶入建立當天。新方塊會直接打開編輯模式。
-              </span>
               <div className="ml-auto flex items-center gap-3">
                 {saveMsg && <span className="text-sm text-amber-700">{saveMsg}</span>}
                 <button className={btnGhost} onClick={exportCSV} disabled={posts.length === 0}>
@@ -1086,19 +1192,17 @@ export default function App() {
             </div>
 
             {!loaded ? (
-              <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-sm text-stone-400 shadow-sm">
-                載入中…
-              </p>
+              <p className="rounded-lg border border-stone-200 bg-white px-5 py-6 text-sm text-stone-500">載入中…</p>
             ) : posts.length === 0 ? (
-              <p className="rounded-xl border border-stone-200 bg-white px-5 py-8 text-sm text-stone-400 shadow-sm">
-                還沒有貼文方塊。按「＋ 新增貼文方塊」建立第一篇。
+              <p className="rounded-lg border border-stone-200 bg-white px-5 py-6 text-sm text-stone-500">
+                還沒有貼文方塊。
               </p>
             ) : (
-              posts.map((p, i) => (
+              sortedPosts.map((p) => (
                 <PostCard
                   key={p._id}
                   post={p}
-                  index={i}
+                  index={postNo[p._id] - 1}
                   onChange={updatePost}
                   onDelete={deletePost}
                   onAddLink={addLinkToPost}
