@@ -447,8 +447,8 @@ function StatCard({ label, value, series }) {
   const first = series[0]?.date;
   const last = series.length > 1 ? series[series.length - 1]?.date : null;
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-      <p className="text-xs text-stone-500">{label}</p>
+    <div className="rounded-lg border border-stone-200 bg-white p-4">
+      <p className="text-xs tracking-wide text-stone-500">{label}</p>
       <div className="mt-2">
         <Sparkline series={series} />
       </div>
@@ -458,7 +458,7 @@ function StatCard({ label, value, series }) {
           <span>{last}</span>
         </div>
       )}
-      <p className="mt-2 text-xl font-semibold text-stone-900">{value}</p>
+      <p className="mt-2 text-2xl font-semibold text-stone-900">{value}</p>
     </div>
   );
 }
@@ -1051,18 +1051,17 @@ export default function App() {
   const byMedium = Object.values(byMediumMap).sort((a, b) => b.reach - a.reach);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-100 to-stone-50 font-sans text-stone-800">
-      <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="min-h-screen bg-stone-50 font-sans text-stone-800">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         {/* 標題 */}
-        <header className="mb-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-lg font-bold text-white shadow-sm">
-            職
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">職促文小工具</h1>
+        <header className="mb-8 border-b border-stone-200 pb-6">
+          <p className="text-xs font-medium tracking-[0.2em] text-stone-400 uppercase">104</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-stone-900">職促文小工具</h1>
+          <p className="mt-1 text-sm text-stone-500">網址清理・職稱查詢・貼文成效追蹤</p>
         </header>
 
         {/* 分頁 */}
-        <div className="mb-6 flex w-fit gap-1 rounded-xl bg-stone-200/70 p-1 shadow-inner">
+        <div className="mb-8 flex w-fit gap-6 border-b border-stone-200">
           {[
             { id: "dashboard", label: "① 追蹤成效" },
             { id: "track", label: "② 文案集散地" },
@@ -1071,10 +1070,10 @@ export default function App() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={
-                "rounded-lg px-4 py-1.5 text-sm font-medium transition-all " +
+                "-mb-px border-b-2 px-1 pb-2.5 text-sm font-medium transition-colors " +
                 (tab === t.id
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-stone-500 hover:text-stone-700 hover:bg-white/50")
+                  ? "border-stone-800 text-stone-900"
+                  : "border-transparent text-stone-400 hover:text-stone-600")
               }
             >
               {t.label}
