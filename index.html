@@ -1,12 +1,15 @@
-<!doctype html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>職促文小工具</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/main.jsx"></script>
-  </body>
-</html>
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Source Serif 4", "Noto Serif TC", ui-serif, Georgia, "Times New Roman", serif;
+}
+
+html {
+  font-feature-settings: "palt" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  letter-spacing: 0.01em;
+}
