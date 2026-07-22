@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Source Serif 4", "Noto Serif TC", ui-serif, Georgia, "Times New Roman", serif;
+}
+
+html {
+  font-feature-settings: "palt" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  letter-spacing: 0.01em;
+}
